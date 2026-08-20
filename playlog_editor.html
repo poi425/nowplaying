@@ -1,0 +1,2802 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>로그 백업 편집기</title>
+<style>
+  :root{
+    --bg-app: #1c1c1c;
+    --bg-panel: #222222;
+    --bg-panel-2: #272727;
+    --bg-log: #2a2a2a;
+    --log-bg: #2a2a2a;
+    --msg-text-color: #f2f2f2;
+    --roll-bg: #272727;
+    --roll-border: #8a8a8a;
+    --roll-text: #f2f2f2;
+    --roll-color-crit: #22c55e;
+    --roll-color-hard: #34d399;
+    --roll-color-success: #4ade80;
+    --roll-color-fail: #f87171;
+    --roll-color-fumble: #dc2626;
+    --avatar-blank: #222222;
+    --border: #3b3b3b;
+    --border-soft: #333333;
+    --text: #e8e8e8;
+    --text-dim: #a3a3a3;
+    --text-faint: #757575;
+    --accent: #8a8a8a;
+    --accent-strong: #cfcfcf;
+    --danger: #d9534f;
+    --radius: 8px;
+    --font-ui: "Pretendard", sans-serif;
+    --font-log: "Pretendard", sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    font-family:var(--font-ui);
+    background:var(--bg-app);
+    color:var(--text);
+    display:flex;
+    height:100vh;
+    overflow:hidden;
+  }
+
+  #sidebar{
+    width:320px;
+    min-width:240px;
+    max-width:640px;
+    background:var(--bg-panel);
+    border-right:1px solid var(--border);
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+    flex-shrink:0;
+  }
+  #sidebarResizer{
+    width:5px; flex-shrink:0; cursor:col-resize;
+    background:transparent;
+    position:relative;
+  }
+  #sidebarResizer::after{
+    content:''; position:absolute; top:0; bottom:0; left:2px; width:1px;
+    background:var(--border);
+  }
+  #sidebarResizer:hover::after, #sidebarResizer.dragging::after{
+    left:0; width:5px; background:var(--accent);
+  }
+  .sidebar-head{
+    padding:16px 18px 14px;
+    border-bottom:1px solid var(--border-soft);
+  }
+  .sidebar-head h1{
+    font-size:14.5px;
+    font-weight:600;
+    margin:0;
+    color:var(--text);
+  }
+  .sidebar-scroll{
+    flex:1;
+    overflow-y:auto;
+    padding:16px 18px 24px;
+  }
+  .section{margin-bottom:22px;}
+  .section-title{
+    font-size:11px;
+    font-weight:600;
+    letter-spacing:.04em;
+    color:var(--text-dim);
+    margin:0 0 10px;
+  }
+  .section-hint{
+    font-size:11px;
+    color:var(--text-faint);
+    line-height:1.5;
+    margin:6px 0 0;
+  }
+
+  .upload-box{
+    border:1.5px dashed var(--border);
+    border-radius:var(--radius);
+    padding:18px 14px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s, background .15s;
+  }
+  .upload-box:hover, .upload-box.drag{
+    border-color:var(--accent);
+    background:rgba(255,255,255,.03);
+  }
+  .upload-box .upload-icon{font-size:18px; margin-bottom:6px; color:var(--text-dim);}
+  .upload-box .upload-main{font-size:13px; color:var(--text);}
+  .upload-box .upload-sub{font-size:11px; color:var(--text-faint); margin-top:4px;}
+  #fileInput{display:none;}
+  #orderRefInput{display:none;}
+  .file-chip{
+    margin-top:8px;
+    display:flex; align-items:center; gap:8px;
+    background:var(--bg-panel-2);
+    border:1px solid var(--border-soft);
+    border-radius:8px;
+    padding:8px 10px;
+    font-size:12px;
+    color:var(--text-dim);
+  }
+
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:6px;
+    font-family:var(--font-ui);
+    font-size:12.5px;
+    font-weight:600;
+    padding:9px 12px;
+    border-radius:8px;
+    border:1px solid var(--border);
+    background:var(--bg-panel-2);
+    color:var(--text);
+    cursor:pointer;
+    transition:background .15s, border-color .15s, opacity .15s;
+    width:100%;
+  }
+  .btn:hover{border-color:var(--accent); background:#2d2d2d;}
+  .btn:disabled{opacity:.4; cursor:not-allowed;}
+  .btn-primary{
+    background:#e8e8e8;
+    border-color:#e8e8e8;
+    color:#1a1a1a;
+  }
+  .btn-primary:hover{background:#ffffff;}
+  .btn-ghost{background:transparent;}
+  .btn-row{display:flex; gap:8px; margin-top:8px;}
+  .btn-row .btn{width:auto; flex:1;}
+
+  select, .text-input{
+    width:100%;
+    background:var(--bg-log);
+    border:1px solid var(--border-soft);
+    border-radius:7px;
+    color:var(--text);
+    font-size:12.5px;
+    padding:8px 9px;
+    outline:none;
+    font-family:var(--font-ui);
+  }
+  select:focus, .text-input:focus{border-color:var(--accent);}
+
+  .display-setting-row{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    margin-bottom:9px; font-size:12.5px; color:var(--text);
+  }
+  .display-setting-row label{flex-shrink:0;}
+  .display-setting-row.sub{padding-left:14px; margin-bottom:7px;}
+  .hex-color-row{display:flex; align-items:center; gap:6px; flex-shrink:0;}
+  .hex-color-input{
+    width:78px; font-family:"SFMono-Regular",Consolas,monospace; font-size:11.5px;
+    background:var(--bg-log); border:1px solid var(--border-soft); border-radius:6px;
+    color:var(--text); padding:5px 7px; outline:none; text-transform:lowercase;
+  }
+  .hex-color-input:focus{border-color:var(--accent);}
+  .color-preview{
+    width:20px; height:20px; border-radius:5px; border:1px solid var(--border-soft);
+    flex-shrink:0;
+  }
+  .color-preview.invalid{
+    background-image:repeating-linear-gradient(45deg, var(--danger), var(--danger) 3px, #222 3px, #222 6px);
+    border-color:var(--danger);
+  }
+  .display-reset-link{
+    display:inline-block; margin-top:2px; font-size:11.5px;
+    color:var(--text-faint); cursor:pointer; text-decoration:underline;
+  }
+  .display-reset-link:hover{color:var(--accent-strong);}
+  .section-subtitle{
+    font-size:11px; color:var(--text-faint); margin:12px 0 8px; font-weight:600;
+    text-transform:uppercase; letter-spacing:.03em;
+  }
+  .color-rule-row{
+    display:flex; align-items:center; gap:6px; margin-bottom:8px;
+  }
+  .color-rule-row .delim-input{
+    width:36px; text-align:center; font-family:monospace; font-size:12px;
+    background:var(--bg-log); border:1px solid var(--border-soft); border-radius:6px;
+    color:var(--text); padding:5px 4px; outline:none;
+  }
+  .color-rule-row .delim-input:focus{border-color:var(--accent);}
+  .color-rule-row .arrow{color:var(--text-faint); font-size:11px; flex-shrink:0;}
+  .color-rule-row .rule-del{
+    background:none; border:none; color:var(--text-faint); cursor:pointer;
+    font-size:13px; flex-shrink:0; margin-left:2px;
+  }
+  .color-rule-row .rule-del:hover{color:var(--danger);}
+  .color-rule-row .rule-enable{flex-shrink:0; cursor:pointer;}
+
+  .tab-chip-list{display:flex; flex-direction:column; gap:5px;}
+  .tab-row{
+    display:grid;
+    grid-template-columns:minmax(76px,108px) 1fr;
+    align-items:center;
+    column-gap:14px;
+    width:100%;
+  }
+  .tab-opacity-control{
+    display:flex; align-items:center; gap:6px;
+    font-size:10px; color:var(--text-faint); white-space:nowrap;
+  }
+  .tab-opacity-control input{margin:0; width:14px; height:14px; accent-color:#777;}
+  .tab-opacity-global{display:flex;align-items:center;gap:7px;margin:0 0 8px;font-size:10px;color:var(--text-faint);}
+  .tab-opacity-global input[type=range]{flex:1;min-width:72px;height:3px;accent-color:#777;}
+  .tab-opacity-value{width:35px;text-align:right;color:var(--text-dim);font-variant-numeric:tabular-nums;}
+  .tab-main-note{font-size:10px;color:var(--text-faint);}
+  .tab-chip{
+    font-size:10.5px;
+    padding:3px 6px;
+    border-radius:5px;
+    border:1px solid var(--border-soft);
+    background:var(--bg-panel-2);
+    color:var(--text-dim);
+    cursor:pointer;
+    min-width:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .tab-chip.active{color:var(--accent-strong); border-color:var(--accent); background:#2d2d2d;}
+
+  .empty-hint{
+    font-size:12px; color:var(--text-faint); line-height:1.6;
+  }
+
+  .sidebar-foot{
+    padding:14px 18px;
+    border-top:1px solid var(--border-soft);
+  }
+
+  #main{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    min-width:0;
+  }
+  #topbar{
+    height:50px;
+    flex-shrink:0;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 20px;
+    border-bottom:1px solid var(--border);
+    background:var(--bg-panel);
+  }
+  #topbar .title-input{
+    background:none; border:none; color:var(--text);
+    font-size:14px; font-weight:600; font-family:var(--font-ui);
+    outline:none; max-width:50%;
+  }
+  #topbar .hint{font-size:11.5px; color:var(--text-faint);}
+
+  #logScroll{
+    flex:1;
+    overflow-y:auto;
+    background:var(--log-bg);
+    padding:10px 0 80px;
+  }
+  #logInner{
+    max-width:720px;
+    margin:0 auto;
+    padding:0 20px;
+    font-family:var(--font-log);
+  }
+  .placeholder-state{
+    max-width:400px; margin:100px auto; text-align:center;
+    color:var(--text-faint); font-size:13px; line-height:1.7;
+  }
+
+  .insert-slot{
+    height:12px;
+    position:relative;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .insert-btn{
+    opacity:0;
+    width:20px; height:20px; border-radius:50%;
+    background:var(--bg-panel-2); border:1px solid var(--border);
+    color:var(--text-dim);
+    font-size:13px; line-height:1;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+    transition:opacity .12s;
+  }
+  .insert-slot:hover .insert-btn{opacity:1;}
+
+  .divider-row{
+    display:flex; align-items:center; gap:10px;
+    margin:14px 0;
+  }
+  .divider-line-wrap{
+    flex:1; min-width:0;
+    display:flex; align-items:center; gap:10px;
+  }
+  .divider-row .line{flex:1; min-width:0; height:1px; background:var(--border);}
+  .divider-row .tag{
+    font-size:11.5px; color:var(--text-dim);
+    padding:2px 4px;
+    white-space:nowrap;
+    outline:none; cursor:text;
+  }
+  .divider-row .del{
+    background:none;border:none;color:var(--text-faint);cursor:pointer;font-size:12px;
+    opacity:0; padding:2px 4px; flex-shrink:0;
+  }
+  .divider-row:hover .del{opacity:1;}
+  .divider-row .del:hover{color:var(--danger);}
+
+  .msg-row{
+    display:flex; gap:12px;
+    align-items:flex-start;
+    padding:11px 0;
+    border-bottom:1px solid var(--border);
+    position:relative;
+  }
+  .msg-row .avatar{
+    width:44px; height:44px; border-radius:0;
+    background:var(--avatar-blank);
+    flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden;
+    margin-top:1px;
+    position:relative;
+    cursor:pointer;
+  }
+  .msg-row .avatar:hover{ box-shadow:inset 0 0 0 2px rgba(255,255,255,.35); }
+  .msg-row .avatar img{width:100%; height:100%; object-fit:cover; object-position:top center;}
+
+  .portrait-picker{
+    position:fixed;
+    z-index:60;
+    background:var(--bg-panel-2);
+    border:1px solid var(--border);
+    border-radius:9px;
+    padding:6px;
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+    min-width:190px;
+    max-height:280px;
+    overflow-y:auto;
+    box-shadow:0 10px 28px rgba(0,0,0,.45);
+  }
+  .portrait-picker-item{
+    display:flex; align-items:center; gap:8px;
+    padding:6px 8px; border-radius:6px; cursor:pointer;
+    font-size:12px; color:var(--text);
+  }
+  .portrait-picker-item:hover{background:rgba(255,255,255,.07);}
+  .portrait-picker-item.sel{background:rgba(255,255,255,.1); color:var(--accent-strong); font-weight:600;}
+  .portrait-picker-item img{width:28px; height:28px; border-radius:0; object-fit:cover; object-position:top center; flex-shrink:0; background:var(--avatar-blank);}
+  .portrait-picker-clear{
+    border-top:1px solid var(--border-soft); margin-top:2px; padding-top:8px;
+    color:var(--text-faint); font-size:11px;
+  }
+  .msg-body{flex:1; min-width:0;}
+  .msg-meta{
+    display:flex; align-items:baseline; gap:6px; margin-bottom:3px;
+    min-height:1px;
+  }
+  .msg-name{
+    font-size:13.5px; font-weight:700;
+    outline:none; cursor:text;
+    border-radius:3px;
+    padding:0 2px;
+  }
+  .msg-name:focus{background:rgba(255,255,255,.06);}
+  .msg-text{
+    font-size:14px; line-height:1.65; color:var(--msg-text-color);
+    outline:none; cursor:text;
+    white-space:pre-wrap; word-break:break-word;
+    border-radius:4px; padding:1px 2px;
+    font-family:var(--font-log);
+  }
+  .msg-text:focus{background:rgba(255,255,255,.04);}
+  .msg-text.roll{
+    display:inline-block;
+    background:var(--roll-bg);
+    border:1px solid var(--roll-border);
+    padding:6px 10px;
+    border-radius:6px;
+    font-size:13px;
+    color:var(--roll-text);
+  }
+  #logInner.roll-no-bg .msg-text.roll{ background:none; }
+  #logInner.roll-no-border .msg-text.roll{ border-color:transparent; }
+  #logInner.roll-bold .msg-text.roll{ font-weight:700; }
+
+  .msg-text.roll.roll-crit{ border-color:var(--roll-color-crit); color:var(--roll-color-crit); font-weight:700; }
+  .msg-text.roll.roll-hard{ border-color:var(--roll-border); color:var(--roll-text); }
+  .msg-text.roll.roll-success{ border-color:var(--roll-border); color:var(--roll-text); }
+  .msg-text.roll.roll-fail{ border-color:var(--roll-border); color:var(--roll-text); }
+  .msg-text.roll.roll-fumble{ border-color:var(--roll-color-fumble); color:var(--roll-color-fumble); font-weight:700; }
+
+  .msg-img-row{
+    display:none;
+    align-items:center; gap:6px;
+    margin-top:6px;
+  }
+  .msg-img-row.open{ display:flex; }
+  .msg-img-label{
+    font-size:10px; color:var(--text-faint); flex-shrink:0; letter-spacing:.02em;
+  }
+  .msg-img-input{
+    flex:1; min-width:0; box-sizing:border-box;
+    font-size:11px; font-family:var(--font-ui);
+    padding:4px 7px;
+    border:1px solid var(--border-soft);
+    border-radius:6px;
+    outline:none;
+  }
+  .msg-img-input:focus{border-color:var(--accent); color:var(--text);}
+
+  .msg-row.is-narration .msg-text{
+    font-style:italic;
+    color:var(--text-dim);
+  }
+
+  .msg-controls{
+    display:flex; align-items:center; gap:4px;
+    opacity:0; flex-shrink:0;
+  }
+  .msg-row:hover .msg-controls{opacity:1;}
+  .msg-controls button{
+    background:var(--bg-panel-2); border:1px solid var(--border-soft);
+    color:var(--text-faint); border-radius:6px; width:24px; height:24px;
+    font-size:12px; cursor:pointer;
+  }
+  .msg-controls button:hover{color:var(--accent-strong); border-color:var(--accent);}
+  .msg-controls button.del-hover-danger:hover{color:var(--danger); border-color:var(--danger);}
+  .msg-controls .swatch-hex-row{
+    display:flex; align-items:center; gap:3px; flex-shrink:0;
+  }
+  .msg-controls .swatch-hex-input{
+    width:54px; height:24px; box-sizing:border-box;
+    font-family:monospace; font-size:10.5px;
+    background:var(--bg-panel-2); border:1px solid var(--border-soft);
+    color:var(--text); border-radius:6px; padding:0 4px; outline:none;
+  }
+  .msg-controls .swatch-hex-input:focus{border-color:var(--accent);}
+  .msg-controls .swatch{
+    width:14px; height:14px; border-radius:50%; border:1px solid rgba(255,255,255,.3);
+    flex-shrink:0;
+  }
+  .msg-controls .swatch.invalid{
+    background-image:repeating-linear-gradient(45deg, var(--danger), var(--danger) 2px, #222 2px, #222 4px);
+  }
+
+  ::-webkit-scrollbar{width:9px; height:9px;}
+  ::-webkit-scrollbar-thumb{background:#333; border-radius:6px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+
+  input[type=color]{
+    -webkit-appearance:none; appearance:none; border:none; background:none;
+    padding:0; width:14px; height:14px; cursor:pointer;
+  }
+  input[type=color]::-webkit-color-swatch-wrapper{padding:0;}
+  input[type=color]::-webkit-color-swatch{border:none; border-radius:50%;}
+
+  .msg-row.is-system .avatar{display:none;}
+  .msg-row.is-system .msg-name,
+  .msg-row.is-system .msg-text,
+
+  @media (max-width: 760px){
+    #sidebar{position:fixed; z-index:20; height:100%; transform:translateX(-100%); transition:transform .2s;}
+    #sidebar.open{transform:translateX(0);}
+    #sidebarResizer{display:none;}
+    #logInner{padding:0 12px;}
+  }
+#topbarLeft{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-width:0;
+}
+#harvestBadge{
+  position:relative;
+  flex-shrink:0;
+}
+#harvestCopyBtn{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  font:600 12.5px/1 inherit;
+  cursor:pointer;
+  border:1px solid var(--border);
+  border-radius:999px;
+  padding:7px 12px 7px 10px;
+  background:rgba(38,39,39,.92);
+  color:var(--accent-strong, #cfcfcf);
+  backdrop-filter:blur(2px);
+  box-shadow:0 6px 18px rgba(0,0,0,.28);
+  transition:border-color .15s, background .15s, color .15s;
+  white-space:nowrap;
+}
+#harvestCopyBtn:hover{ border-color:var(--accent); background:#2d2d2d; }
+#harvestCopyBtn.is-done{ border-color:#5fae6f; color:#8fd39e; }
+#harvestCopyBtn.is-error{ border-color:#b0524a; color:#e0958e; }
+#harvestCopyIcon{ font-size:13px; line-height:1; }
+#harvestTooltip{
+  position:absolute;
+  top:calc(100% + 8px);
+  left:0;
+  z-index:20;
+  width:min(300px, calc(100vw - 340px));
+  min-width:220px;
+  font-size:12px;
+  line-height:1.6;
+  color:#d8d8d8;
+  background:#101010;
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:10px 12px;
+  box-shadow:0 12px 30px rgba(0,0,0,.4);
+  opacity:0;
+  visibility:hidden;
+  transform:translateY(-4px);
+  transition:opacity .15s, transform .15s, visibility .15s;
+  pointer-events:none;
+}
+#harvestTooltip b{ color:#fff; }
+#harvestBadge:hover #harvestTooltip,
+#harvestCopyBtn:focus-visible + #harvestTooltip{
+  opacity:1;
+  visibility:visible;
+  transform:translateY(0);
+}
+</style>
+<style id="viewer-ui-merge">
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+:root{
+  --bg-app:#252626;
+  --bg-panel:#303131;
+  --bg-panel-2:#3a3b3b;
+  --bg-log:#303131;
+  --log-bg:#303131;
+  --msg-text-color:#c0c0c0;
+  --roll-bg:#282929;
+  --roll-border:#3e3f3f;
+  --roll-text:#f2f2f2;
+  --avatar-blank:#303131;
+  --border:#3e3f3f;
+  --border-soft:#3a3b3b;
+  --text:#d4d4d4;
+  --text-dim:#a0a0a0;
+  --text-faint:#6a6a6a;
+  --accent:#666;
+  --accent-strong:#d4d4d4;
+  --radius:8px;
+  --font-ui:'Pretendard',sans-serif;
+  --font-log:'Pretendard',sans-serif;
+  --log-name-fs:12px;--log-body-fs:11px;--log-roll-fs:10px;
+  --log-fs:11px;
+}
+
+html,body{min-height:100%;height:auto;}
+body{
+  display:grid;
+  grid-template-columns:minmax(280px,340px) minmax(0,640px);
+  justify-content:center;
+  align-items:stretch;
+  gap:0;
+  height:100vh;
+  padding:24px;
+  background:#252626;
+  overflow:hidden;
+}
+
+#sidebar,
+#main{
+  height:calc(100vh - 48px);
+  min-height:0;
+  border:1px solid #3e3f3f;
+  background:#303131;
+}
+
+#sidebar{
+  width:auto;
+  min-width:0;
+  max-width:none;
+  border-radius:16px 0 0 16px;
+  border-right:0;
+  box-shadow:0 16px 40px rgba(0,0,0,.22);
+}
+
+#main{
+  position:relative;
+  border-radius:0 16px 16px 0;
+  overflow:hidden;
+  box-shadow:0 16px 40px rgba(0,0,0,.22);
+}
+
+#sidebarResizer{display:none!important;}
+.sidebar-head{
+  padding:24px 24px 18px;
+  border-bottom:1px solid #3a3b3b;
+}
+.sidebar-head h1{
+  font-size:13px;
+  font-weight:600;
+  letter-spacing:.02em;
+  color:#d4d4d4;
+}
+.sidebar-head h1::after{
+  content:'CCFolia Log Editor';
+  display:block;
+  margin-top:3px;
+  font-size:11px;
+  font-weight:400;
+  color:#7a7a7a;
+}
+.sidebar-scroll{padding:18px 24px 28px;}
+.section{margin-bottom:20px;}
+.section-title,
+.section-subtitle{
+  color:#7a7a7a;
+  font-size:10.5px;
+  letter-spacing:.04em;
+  font-weight:500;
+  text-transform:none;
+}
+.section-title{margin-bottom:8px;}
+.section-subtitle{margin:14px 0 8px;}
+.section-hint,.empty-hint{font-size:10.5px;color:#666;line-height:1.65;}
+
+.upload-box{
+  border:1px dashed #4a4b4b;
+  border-radius:8px;
+  padding:18px 12px;
+  background:#282929;
+}
+.upload-box:hover,.upload-box.drag{border-color:#777;background:#333434;}
+.upload-box .upload-icon{font-size:16px;color:#7a7a7a;}
+.upload-box .upload-main{font-size:12px;color:#d4d4d4;}
+.upload-box .upload-sub{font-size:10.5px;color:#666;}
+.upload-box-small{padding:12px 12px;}
+.upload-box-small .upload-icon{font-size:13px;}
+.upload-box-small .upload-main{font-size:11px;}
+.upload-box-small .upload-sub{font-size:9.5px;line-height:1.5;}
+#orderRefStatus.on{color:#8fd39e;}
+.file-chip{
+  background:#282929;
+  border:1px solid #3e3f3f;
+  border-radius:8px;
+}
+
+.btn{
+  padding:8px 12px;
+  border-radius:7px;
+  border:1px solid #3e3f3f;
+  background:#3a3b3b;
+  color:#a0a0a0;
+  font-size:11.5px;
+  font-weight:500;
+}
+.btn:hover{background:#444545;border-color:#505050;}
+.btn-primary{background:#505050;border-color:#666;color:#d4d4d4;}
+.btn-primary:hover{background:#5a5a5a;}
+.sidebar-foot{padding:14px 24px 18px;border-top:1px solid #3a3b3b;}
+
+select,.text-input,.hex-color-input,
+.color-rule-row .delim-input,
+.msg-controls .swatch-hex-input,.msg-img-input{
+  background:#282929;
+  border-color:#3e3f3f;
+  color:#d4d4d4;
+  border-radius:7px;
+}
+select,.text-input{font-size:11.5px;padding:8px 10px;}
+.display-setting-row{font-size:11.5px;color:#a0a0a0;}
+.display-reset-link{font-size:10.5px;color:#7a7a7a;}
+.display-reset-link:hover{color:#d4d4d4;}
+.color-preview{border-color:#4a4b4b;}
+.hex-color-row{position:relative;display:inline-flex;align-items:center;}
+.hex-color-row .color-preview{width:26px;height:26px;border-radius:5px;cursor:pointer;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);}
+.hex-color-row .color-preview:hover{border-color:#777;}
+.hex-color-row .hex-color-input{display:none;position:absolute;z-index:90;right:0;top:31px;width:94px;padding:7px 8px;background:#202121;border:1px solid #555;border-radius:7px;box-shadow:0 8px 22px rgba(0,0,0,.4);font:11px Consolas,monospace;text-align:center;}
+.hex-color-row.open .hex-color-input{display:block;}
+
+#topbar{
+  height:auto;
+  min-height:74px;
+  padding:18px 24px;
+  background:#303131;
+  border-bottom:1px solid #3a3b3b;
+  align-items:flex-start;
+}
+#topbar .title-input{
+  font-family:var(--font-ui);
+  font-size:13px;
+  font-weight:600;
+  color:#d4d4d4;
+  max-width:65%;
+}
+#topbar .hint{font-size:10.5px;color:#6a6a6a;margin-top:2px;}
+#logScroll{background:#303131;padding:0;}
+#logInner{max-width:none;padding:0;font-family:var(--font-log);}
+.placeholder-state{margin:90px auto;padding:0 28px;font-size:12px;color:#6a6a6a;line-height:1.9;}
+#logList{padding:6px 0 22px;}
+
+.msg-row{
+  gap:14px;
+  padding:14px 20px;
+  border-bottom:0;
+  box-shadow:0 1px 0 #3a3b3b;
+}
+.msg-row:last-child{box-shadow:none;}
+.msg-row:hover{background:#323333;}
+.msg-row .avatar{
+  width:34px;height:34px;
+  border-radius:50%;
+  margin-top:2px;
+  background:#303131;
+}
+.msg-row .avatar img{border-radius:inherit;}
+.msg-name{font-size:var(--log-name-fs);font-weight:600;letter-spacing:.01em;padding:0;}
+.msg-meta{margin-bottom:2px;gap:6px;justify-content:space-between;width:100%;}
+.msg-text{
+  font-size:var(--log-body-fs);
+  line-height:1.55;
+  color:#c0c0c0;
+  padding:1px 0;
+  text-align:justify;
+}
+.msg-text.roll{
+  margin-top:5px;
+  padding:2px 8px;
+  border:0;
+  border-radius:4px;
+  background:#282929;
+  color:#888;
+  font-size:var(--log-roll-fs);
+}
+.msg-controls{position:absolute;right:8px;top:8px;gap:3px;}
+.msg-controls button{
+  width:22px;height:22px;border-radius:5px;
+  background:#3a3b3b;border-color:#3e3f3f;color:#7a7a7a;font-size:11px;
+}
+.msg-row:hover .msg-controls{opacity:1;}
+
+.insert-slot{height:8px;}
+.insert-btn{width:18px;height:18px;background:#3a3b3b;border-color:#444;color:#7a7a7a;}
+.divider-row{margin:10px 20px;}
+.divider-row .line{background:#3a3b3b;}
+.divider-row .tag{font-size:10.5px;color:#666;}
+
+.font-size-control{margin-top:14px;padding-top:13px;border-top:1px solid #3a3b3b;}
+.font-size-grid{display:flex;align-items:center;gap:3px;flex-wrap:nowrap;}
+.font-size-grid label{font-size:10px;color:#8a8a8a;white-space:nowrap;flex-shrink:0;}
+.font-size-select{
+  appearance:none; -webkit-appearance:none; -moz-appearance:none;
+  width:0; min-width:0; flex:1 1 auto;
+  padding:5px 15px 5px 5px;
+  background:#282929 url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="8" height="5" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" fill="none" stroke="%238a8a8a" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat right 4px center;
+  border:1px solid #3e3f3f; border-radius:6px; color:#d4d4d4;
+  font:10px var(--font-ui); text-align:center; outline:none;
+  font-variant-numeric:tabular-nums; cursor:pointer;
+}
+.font-size-select:focus{border-color:#777;background-color:#303131;}
+.tab-badge{display:inline-flex;align-items:center;max-width:110px;padding:1px 5px;border:1px solid #353c52;border-radius:4px;background:transparent;color:#6a6a7a;font-size:9px;line-height:1.35;font-weight:400;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;}
+.find-replace-row{display:flex;gap:6px;margin-bottom:7px;align-items:center;}
+.find-replace-row .text-input{min-width:0;flex:1;padding:7px 9px;}
+.mini-btn{height:31px;padding:0 9px;border:1px solid #3e3f3f;border-radius:6px;background:#3a3b3b;color:#a0a0a0;font:10.5px var(--font-ui);cursor:pointer;white-space:nowrap;}
+.mini-btn:hover{background:#444545;color:#d4d4d4;}
+.find-status{font-size:10px;color:#666;min-height:14px;margin-top:2px;}
+.msg-row.search-hit{outline:1px solid #747474;outline-offset:-1px;background:rgba(255,255,255,.035)!important;}
+
+.msg-row.tab-muted{opacity:var(--tab-muted-opacity,.72);}
+.msg-row.tab-muted:hover{opacity:min(1,calc(var(--tab-muted-opacity,.72) + .18));}
+
+.tab-chip{
+  padding:5px 10px;
+  border-radius:20px;
+  background:#282929;
+  border-color:#3e3f3f;
+  color:#7a7a7a;
+}
+.tab-chip.active{background:#505050;color:#d4d4d4;border-color:#666;}
+
+::-webkit-scrollbar{width:8px;height:8px;}
+::-webkit-scrollbar-thumb{background:#444;border-radius:8px;}
+
+@media(max-width:900px){
+  body{display:block;height:auto;min-height:100vh;padding:0;overflow:auto;}
+  #sidebar,#main{height:auto;min-height:0;border-radius:0;border:0;box-shadow:none;}
+  #sidebar{position:static;transform:none;width:100%;max-width:none;}
+  #main{min-height:70vh;border-top:1px solid #3e3f3f;}
+  .sidebar-scroll{max-height:none;overflow:visible;}
+  #logScroll{overflow:visible;}
+}
+</style>
+
+</head>
+<body>
+
+  <aside id="sidebar">
+    <div class="sidebar-head">
+      <h1>로그 백업 편집기</h1>
+    </div>
+    <div class="sidebar-scroll">
+
+      <div class="section">
+        <p class="section-title">로그 파일</p>
+        <div class="upload-box" id="uploadBox">
+          <div class="upload-icon">＋</div>
+          <div class="upload-main">HTML 로그 파일을 올려주세요</div>
+          <div class="upload-sub">코코포리아에서 출력한 .html · 클릭 또는 드래그</div>
+        </div>
+        <input type="file" id="fileInput" accept=".html,.htm" multiple />
+        <div id="fileChips"></div>
+      </div>
+
+      <div class="section">
+        <p class="section-title">순서 정렬 기준 (선택)</p>
+        <div class="upload-box upload-box-small" id="orderRefBox">
+          <div class="upload-icon">⇅</div>
+          <div class="upload-main">코코포리아 "로그 다운로드" 공식 파일</div>
+          <div class="upload-sub">이미지는 없지만 순서가 정확한 파일 · 이 순서에 맞춰 위 로그를 재배열해요</div>
+        </div>
+        <input type="file" id="orderRefInput" accept=".html,.htm" />
+        <div id="orderRefStatus" class="find-status"></div>
+      </div>
+
+      <div class="section">
+        <p class="section-title">글자 크기</p>
+        <div class="font-size-control" style="margin-top:0;padding-top:0;border-top:0;">
+          <div class="font-size-grid">
+            <label for="nameFontSizeInput">이름</label><select class="font-size-select" id="nameFontSizeInput"></select>
+            <label for="bodyFontSizeInput">본문</label><select class="font-size-select" id="bodyFontSizeInput"></select>
+            <label for="rollFontSizeInput">판정</label><select class="font-size-select" id="rollFontSizeInput"></select>
+          </div>
+        </div>
+      </div>
+
+      <div class="section" id="findReplaceSection">
+        <p class="section-title">찾기 · 변환</p>
+        <div class="find-replace-row"><input type="text" class="text-input" id="findInput" placeholder="찾을 내용" /><button class="mini-btn" id="findNextBtn">다음</button></div>
+        <div class="find-replace-row"><input type="text" class="text-input" id="replaceInput" placeholder="바꿀 내용" /><button class="mini-btn" id="replaceOneBtn">현재</button><button class="mini-btn" id="replaceAllBtn">전체</button></div>
+        <div class="find-status" id="findStatus">로그를 불러오면 사용할 수 있어요.</div>
+      </div>
+
+      <div class="section">
+        <p class="section-title">표시 설정</p>
+        <div class="display-setting-row">
+          <label for="bgColorInput">로그 배경색</label>
+          <div class="hex-color-row">
+            <input type="text" id="bgColorInput" class="hex-color-input" maxlength="7" placeholder="#rrggbb" />
+            <span id="bgColorPreview" class="color-preview"></span>
+          </div>
+        </div>
+        <div class="display-setting-row">
+          <label for="textColorInput">글자색</label>
+          <div class="hex-color-row">
+            <input type="text" id="textColorInput" class="hex-color-input" maxlength="7" placeholder="#rrggbb" />
+            <span id="textColorPreview" class="color-preview"></span>
+          </div>
+        </div>
+
+        <a id="displayResetBtn" class="display-reset-link">기본값으로</a>
+      </div>
+
+      <div class="section" id="tabSection" style="display:none;">
+        <p class="section-title">탭</p>
+        <div class="tab-opacity-global">
+          <span>흐림 정도</span>
+          <input type="range" id="tabOpacityRange" min="40" max="100" step="1" value="72" />
+          <span class="tab-opacity-value" id="tabOpacityValue">72%</span>
+        </div>
+        <div class="tab-chip-list" id="tabChips"></div>
+      </div>
+
+    </div>
+    <div class="sidebar-foot">
+      <div class="btn-row" style="margin-top:0;">
+        <button class="btn btn-primary" id="tistoryExportBtn" disabled>티스토리 백업용</button>
+        <button class="btn" id="exportBtn" disabled>일반 HTML</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" id="resetBtn">초기화</button>
+      </div>
+    </div>
+  </aside>
+  <div id="sidebarResizer" title="드래그해서 폭 조절"></div>
+
+  <div id="main">
+    <div id="topbar">
+      <div id="topbarLeft">
+        <div id="harvestBadge">
+          <button type="button" id="harvestCopyBtn">
+            <span id="harvestCopyIcon">⧉</span>
+            <span id="harvestCopyLabel">로그 수집 코드 복사</span>
+          </button>
+          <div id="harvestTooltip">코코포리아 세션 룸에서 <b>F12</b>를 눌러 개발자 도구를 열고, <b>콘솔(Console)</b> 란에 붙여넣어 실행하세요.</div>
+        </div>
+        <input class="title-input" id="titleInput" value="세션 로그" />
+      </div>
+      <span class="hint" id="topHint">파일을 올리면 시작돼요</span>
+    </div>
+    <div id="logScroll">
+      <div id="logInner">
+        <div class="placeholder-state" id="placeholder">
+          왼쪽에서 코코포리아 로그 HTML 파일을 올리면<br/>여기에 실제 화면처럼 미리보기가 나타나요.<br/><br/>
+          이름 · 대사 · 구분선을 클릭해서 바로 수정할 수 있어요.
+        </div>
+        <div id="logList" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  "use strict";
+
+  var state = {
+    entries: [],
+    characters: {},
+    tabs: {},
+    tabOpacity: {},
+    tabOpacityValue: 72,
+    fileNames: [],
+    orderRef: null,
+    orderRefName: '',
+    nameFontSize: 12,
+    bodyFontSize: 11,
+    rollFontSize: 10,
+    bgColor: null,
+    textColor: null
+  };
+  var idSeq = 1;
+  function nextId(){ return 'e' + (idSeq++); }
+
+  // ── 로그 형식 자동 감지 ──
+  // 코코포리아 "로그 다운로드" 공식 내보내기는 <p style="color:..."> 안에 span 3개(탭/이름/대사).
+  // F12 콘솔 수집 스크립트가 뽑은 로그는 <div id="ccfolia-log"> 밑에 실제 방 DOM(MuiListItemText 등)이
+  // data-ccf-tab이 달린 div로 한 줄씩 감싸인 채로 그대로 들어있다. 구조가 완전히 다르므로 먼저
+  // #ccfolia-log가 있는지로 형식을 가른다.
+  function parseLogHtml(text){
+    var doc = new DOMParser().parseFromString(text, 'text/html');
+    var harvestRoot = doc.getElementById('ccfolia-log');
+    if (harvestRoot) return parseHarvestLog(harvestRoot);
+    return parseOfficialLog(doc);
+  }
+
+  function parseOfficialLog(doc){
+    var ps = doc.body.querySelectorAll('p');
+    var out = [];
+    ps.forEach(function(p){
+      var styleAttr = p.getAttribute('style') || '';
+      var m = styleAttr.match(/color:\s*(#[0-9a-fA-F]{3,8})/);
+      var color = m ? m[1] : '#9aa0ff';
+      var spans = p.querySelectorAll(':scope > span');
+      if (spans.length < 3) return;
+      var tab = (spans[0].textContent || '').trim().replace(/^\[|\]$/g, '').trim();
+      var name = (spans[1].textContent || '').trim();
+      var html = spans[2].innerHTML.trim();
+      var textOnly = (spans[2].textContent || '').trim();
+      if (!name && !textOnly) return;
+      out.push({
+        id: nextId(),
+        type: 'msg',
+        tab: tab || 'main',
+        name: name,
+        color: color,
+        html: html || '&nbsp;',
+        isNarration: !name,
+        portraitId: null,
+        avatarSrc: ''
+      });
+    });
+    return out;
+  }
+
+  function parseHarvestLog(root){
+    var out = [];
+    var rows = root.querySelectorAll(':scope > div[data-ccf-tab]');
+    rows.forEach(function(row){
+      var tab = (row.getAttribute('data-ccf-tab') || '').trim() || 'main';
+
+      var primary   = row.querySelector('.MuiListItemText-primary');
+      var secondary = row.querySelector('.MuiListItemText-secondary');
+      var img       = row.querySelector('img');
+
+      var name = '';
+      var color = '#9aa0ff';
+      if (primary) {
+        var pClone = primary.cloneNode(true);
+        // 실제 로그를 보니 시각(- 先週 金曜日 19:41 같은) 캡션이 이름과 같은 <h6> 안에
+        // 붙어 나온다. 떼어내지 않으면 이름 뒤에 시각이 그대로 이어 붙는다.
+        pClone.querySelectorAll('.MuiTypography-caption, span[class*="caption"]').forEach(function(c){ c.parentNode.removeChild(c); });
+        name = (pClone.textContent || '').trim();
+        var st = primary.getAttribute('style') || '';
+        var cm = st.match(/color:\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/);
+        if (cm) color = cm[1];
+      }
+
+      var html = '', textOnly = '';
+      if (secondary) {
+        var clone = secondary.cloneNode(true);
+        // 시각·[편집 완료] 표시는 캡션 span으로 붙어있다. 대사에서 떼어낸다.
+        clone.querySelectorAll('.MuiTypography-caption, span[class*="caption"]').forEach(function(c){ c.parentNode.removeChild(c); });
+        html = clone.innerHTML.trim();
+        textOnly = clone.textContent.trim();
+      }
+
+      // 이름도 대사도 이미지도 없는 줄([편집 완료]만 남은 빈 캡션 등)은 건너뛴다
+      if (!name && !textOnly && !img) return;
+
+      // 아이콘을 등록 안 한 캐릭터는 /blank.gif 같은 빈 플레이스홀더 이미지가 찍혀 나온다.
+      // 이걸 그대로 쓰면 깨진 사각형만 보이니, 그런 경우는 그냥 빈칸으로 둔다.
+      var avatarSrc = '';
+      if (img && img.src) {
+        var srcPath = (img.getAttribute('src') || '');
+        if (!/\/?blank\.gif(\?|$)/i.test(srcPath)) avatarSrc = img.src;
+      }
+
+      out.push({
+        id: nextId(),
+        type: 'msg',
+        tab: tab,
+        name: name,
+        color: color,
+        html: html || (avatarSrc ? '' : '&nbsp;'),
+        isNarration: !name,
+        portraitId: null,
+        avatarSrc: avatarSrc
+      });
+    });
+    return out;
+  }
+
+  function spanTextWithBreaks(span){
+    // <br>은 textContent에서 그냥 사라진다. 하베스트 쪽 대사는 white-space:pre-wrap과 함께
+    // 줄바꿈이 실제 개행 문자로 들어있어서 정규화하면 공백 하나가 남는데, 공식 내보내기 쪽은
+    // <br>로 줄을 나누다 보니 그 공백이 통째로 사라져 같은 대사인데도 텍스트가 달라져 버린다.
+    // <br>을 공백으로 바꾼 뒤 읽어야 두 형식의 텍스트가 같은 문자열로 맞아떨어진다.
+    var clone = span.cloneNode(true);
+    clone.querySelectorAll('br').forEach(function(br){
+      br.parentNode.replaceChild(span.ownerDocument.createTextNode(' '), br);
+    });
+    return clone.textContent || '';
+  }
+
+  // ── 순서 정렬 기준 로그 ──
+  // 여러 번에 나눠 수집한 로그를 합치면 탭/세션 경계에서 순서가 실제 대화 순서와 어긋난다.
+  // 코코포리아 "로그 다운로드" 공식 내보내기는 이미지는 없지만 처음부터 끝까지 실제 시간순으로
+  // 정확하게 내려온다. 이 파일을 기준 삼아 이름+대사가 같은 항목을 순서대로 짝지어(FIFO)
+  // 위에서 이미지와 함께 수집해둔 항목들을 그 순서에 맞게 다시 배열한다.
+  function parseOrderRefFile(text){
+    var doc = new DOMParser().parseFromString(text, 'text/html');
+    var ps = doc.body.querySelectorAll('p');
+    var out = [];
+    ps.forEach(function(p){
+      var spans = p.querySelectorAll(':scope > span');
+      if (spans.length < 3) return;
+      var name = spanTextWithBreaks(spans[1]).trim();
+      var textOnly = spanTextWithBreaks(spans[2]).replace(/\s+/g, ' ').trim();
+      if (!name && !textOnly) return;
+      out.push({ name: name, text: textOnly });
+    });
+    return out;
+  }
+
+  function normalizeMsgText(html){
+    var d = document.createElement('div');
+    d.innerHTML = html || '';
+    return (d.textContent || '').replace(/\s+/g, ' ').trim();
+  }
+
+  function orderMatchKey(name, text){
+    return (name || '').trim() + '\u0000' + text;
+  }
+
+  function applyOrderReference(){
+    if (!state.orderRef || !state.orderRef.length) return;
+    var queues = {};
+    state.entries.forEach(function(e){
+      if (e.type !== 'msg') return;
+      var key = orderMatchKey(e.name, normalizeMsgText(e.html));
+      (queues[key] = queues[key] || []).push(e);
+    });
+    var used = {};
+    var ordered = [];
+    state.orderRef.forEach(function(r){
+      var key = orderMatchKey(r.name, r.text);
+      var q = queues[key];
+      if (q && q.length) {
+        var e = q.shift();
+        used[e.id] = true;
+        ordered.push(e);
+      }
+    });
+    // 기준 파일에 없는 줄(예: 기준 파일엔 없는 탭에서 수집한 항목)은 원래 순서 그대로 뒤에 붙인다
+    state.entries.forEach(function(e){
+      if (!used[e.id]) ordered.push(e);
+    });
+    state.entries = ordered;
+  }
+
+  function isRollLine(text){
+    // 다이스 판정으로 인식하는 기준은 CCFOLIA 다이스봇이 실제로 사용하는 기호(＞, →숫자→)뿐입니다.
+    // "성공/실패/판정" 같은 단어만으로는 절대 다이스로 인식하지 않음 — 일반 대사가 오인되는 걸 막기 위함.
+    return /＞/.test(text) || /→\s*\d+\s*→/.test(text);
+  }
+
+  function classifyRollResult(text){
+    if (/대성공|クリティカル|CRITICAL/i.test(text)) return 'crit';
+    if (/대실패|펌블|ファンブル|FUMBLE/i.test(text)) return 'fumble';
+    if (/하드\s*성공|어려운\s*성공|하드성공/.test(text)) return 'hard';
+    if (/보통\s*성공|일반\s*성공/.test(text)) return 'success';
+    if (/성공/.test(text)) return 'success';
+    if (/失敗|실패/.test(text)) return 'fail';
+    return null;
+  }
+
+  function rebuildCharacters(){
+    // 대사 추가 시 "누구 이름으로 추가할지" 목록(이름+색)에만 쓰인다.
+    // 스탠딩 보관함은 더 이상 없다 — 이미지는 각 대사에서 직접 편집한다.
+    var counts = {};
+    state.entries.forEach(function(e){
+      if (e.type !== 'msg' || e.isNarration) return;
+      if (!state.characters[e.name]) {
+        state.characters[e.name] = { color: e.color };
+      }
+      counts[e.name] = (counts[e.name] || 0) + 1;
+    });
+    state.characters.__counts = counts;
+  }
+
+  function rebuildTabs(){
+    state.entries.forEach(function(e){
+      if (e.type === 'msg' && !(e.tab in state.tabs)) state.tabs[e.tab] = true;
+    });
+  }
+
+  function getEntryPortrait(e){
+    // 캐릭터별 스탠딩 보관함은 없앴다. 각 대사에 직접 붙어있는 이미지 링크(avatarSrc)만 쓴다.
+    if (e.avatarSrc) return { src: e.avatarSrc };
+    return null;
+  }
+
+  var activePicker = null;
+  function closePortraitPicker(){
+    if (activePicker && activePicker.parentNode) activePicker.parentNode.removeChild(activePicker);
+    activePicker = null;
+    document.removeEventListener('mousedown', onPickerOutsideClick, true);
+  }
+  function onPickerOutsideClick(ev){
+    if (activePicker && !activePicker.contains(ev.target)) closePortraitPicker();
+  }
+
+  function positionPopoverAt(pop, anchorEl){
+    var r = anchorEl.getBoundingClientRect();
+    pop.style.top = (r.bottom + 6) + 'px';
+    pop.style.left = r.left + 'px';
+    var pr = pop.getBoundingClientRect();
+    if (pr.right > window.innerWidth - 8) {
+      pop.style.left = Math.max(8, window.innerWidth - pr.width - 8) + 'px';
+    }
+    if (pr.bottom > window.innerHeight - 8) {
+      pop.style.top = Math.max(8, r.top - pr.height - 6) + 'px';
+    }
+  }
+
+  function renderTabChips(){
+    var wrap = document.getElementById('tabChips');
+    var allKeys = Object.keys(state.tabs);
+    var isMainTabName = function(t){ return /^(main|메인|メイン)$/i.test(String(t || '').trim()); };
+    var isInfoTabName = function(t){ return /^(info|정보|インフォ)$/i.test(String(t || '').trim()); };
+    var isChatTabName = function(t){ return /^(잡담|雑談|chat|ooc|사담|その他)$/i.test(String(t || '').trim()); };
+    var tabRank = function(t){
+      if (isMainTabName(t)) return 0;
+      if (isInfoTabName(t)) return 1;
+      if (isChatTabName(t)) return 2;
+      return 3;
+    };
+
+    var mainKeys = allKeys.filter(isMainTabName);
+    var otherKeys = allKeys.filter(function(t){ return !isMainTabName(t); }).sort(function(a,b){
+      var ra = tabRank(a), rb = tabRank(b);
+      if (ra !== rb) return ra - rb;
+      return String(a).localeCompare(String(b), 'ko');
+    });
+
+    var rows = [];
+    if (allKeys.length) rows.push({ label:'MAIN', keys: mainKeys.length ? mainKeys : ['main'], isMain:true });
+    otherKeys.forEach(function(t){ rows.push({ label:t, keys:[t], isMain:false }); });
+
+    document.getElementById('tabSection').style.display = rows.length ? 'block' : 'none';
+    wrap.innerHTML = '';
+
+    rows.forEach(function(item){
+      var targetKeys = item.keys;
+      var enabled = targetKeys.every(function(k){ return state.tabs[k] !== false; });
+
+      var row = document.createElement('div');
+      row.className = 'tab-row';
+
+      var chip = document.createElement('div');
+      chip.className = 'tab-chip' + (enabled ? ' active' : '');
+      chip.textContent = '[' + item.label + ']';
+      chip.title = '클릭하면 이 탭의 표시 여부를 바꿔요';
+      chip.onclick = function(){
+        var next = !enabled;
+        targetKeys.forEach(function(k){ state.tabs[k] = next; });
+        renderTabChips();
+        renderLog();
+      };
+      row.appendChild(chip);
+
+      if (item.isMain) {
+        var note = document.createElement('span');
+        note.className = 'tab-main-note';
+        note.textContent = '기본 표시';
+        row.appendChild(note);
+      } else {
+        var label = document.createElement('label');
+        label.className = 'tab-opacity-control';
+        var checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = targetKeys.every(function(k){ return state.tabOpacity[k] !== false; });
+        checkbox.onchange = function(){
+          targetKeys.forEach(function(k){ state.tabOpacity[k] = checkbox.checked; });
+          renderLog();
+        };
+        var text = document.createElement('span');
+        text.textContent = '흐리게';
+        label.appendChild(checkbox);
+        label.appendChild(text);
+        row.appendChild(label);
+      }
+
+      wrap.appendChild(row);
+    });
+  }
+
+
+  var tabOpacityRange = document.getElementById('tabOpacityRange');
+  var tabOpacityValue = document.getElementById('tabOpacityValue');
+  function applyTabOpacityValue(){
+    var n = Math.max(40, Math.min(100, Number(tabOpacityRange.value) || 72));
+    state.tabOpacityValue = n;
+    tabOpacityRange.value = n;
+    tabOpacityValue.textContent = n + '%';
+    document.documentElement.style.setProperty('--tab-muted-opacity', String(n / 100));
+    renderLog();
+  }
+  tabOpacityRange.addEventListener('input', applyTabOpacityValue);
+  applyTabOpacityValue();
+
+  function toHex6(c){
+    if (/^#[0-9a-fA-F]{6}$/.test(c)) return c;
+    if (/^#[0-9a-fA-F]{3}$/.test(c)) {
+      return '#' + c.slice(1).split('').map(function(ch){return ch+ch;}).join('');
+    }
+    return '#9aa0ff';
+  }
+
+  function renderLog(){
+    var listEl = document.getElementById('logList');
+    var placeholder = document.getElementById('placeholder');
+    if (!state.entries.length) {
+      placeholder.style.display = 'block';
+      listEl.style.display = 'none';
+      document.getElementById('exportBtn').disabled = true;
+      document.getElementById('tistoryExportBtn').disabled = true;
+      document.getElementById('topHint').textContent = '파일을 올리면 시작돼요';
+      return;
+    }
+    placeholder.style.display = 'none';
+    listEl.style.display = 'block';
+    document.getElementById('exportBtn').disabled = false;
+    document.getElementById('tistoryExportBtn').disabled = false;
+
+    var visible = state.entries.filter(function(e){
+      return e.type === 'divider' || state.tabs[e.tab] !== false;
+    });
+    document.getElementById('topHint').textContent = visible.length + '개 항목';
+
+    listEl.innerHTML = '';
+    listEl.appendChild(insertSlot(-1));
+
+    visible.forEach(function(e){
+      var realIndex = state.entries.indexOf(e);
+      if (e.type === 'divider') {
+        listEl.appendChild(dividerRow(e));
+      } else {
+        listEl.appendChild(msgRow(e));
+      }
+      listEl.appendChild(insertSlot(realIndex));
+    });
+    if (findMatches.length && findCursor >= 0) { var hit = document.querySelector('.msg-row[data-entry-id="' + findMatches[findCursor] + '"]'); if (hit) hit.classList.add('search-hit'); }
+  }
+
+  function insertSlot(afterIndex){
+    var slot = document.createElement('div');
+    slot.className = 'insert-slot';
+    var btn = document.createElement('div');
+    btn.className = 'insert-btn';
+    btn.textContent = '+';
+    btn.title = '대사 또는 구분선 추가';
+    btn.onclick = function(ev){
+      ev.stopPropagation();
+      openInsertPicker(btn, afterIndex);
+    };
+    slot.appendChild(btn);
+    return slot;
+  }
+
+  function insertMessageAt(afterIndex, name, color){
+    var tab = 'main';
+    var prevEntry = afterIndex >= 0 ? state.entries[afterIndex] : null;
+    var nextEntry = state.entries[afterIndex + 1];
+    if (prevEntry && prevEntry.tab) tab = prevEntry.tab;
+    else if (nextEntry && nextEntry.tab) tab = nextEntry.tab;
+
+    var entry = {
+      id: nextId(), type: 'msg', tab: tab, name: name, color: color || '#9aa0ff',
+      html: '&nbsp;', isNarration: !name, portraitId: null
+    };
+    state.entries.splice(afterIndex + 1, 0, entry);
+    if (!(tab in state.tabs)) state.tabs[tab] = true;
+    rebuildCharacters();
+    renderLog();
+
+    requestAnimationFrame(function(){
+      var row = document.querySelector('.msg-row[data-entry-id="' + entry.id + '"]');
+      if (!row) return;
+      var t = row.querySelector('.msg-text');
+      if (!t) return;
+      t.focus();
+      var range = document.createRange();
+      range.selectNodeContents(t);
+      var sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    });
+  }
+
+  function openInsertPicker(anchorEl, afterIndex){
+    closePortraitPicker();
+    var pop = document.createElement('div');
+    pop.className = 'portrait-picker';
+
+    var names = Object.keys(state.characters).filter(function(k){ return k !== '__counts'; });
+    if (names.length) {
+      names.forEach(function(name){
+        var c = state.characters[name];
+        var opt = document.createElement('div');
+        opt.className = 'portrait-picker-item';
+        var dot = document.createElement('span');
+        dot.style.cssText = 'width:9px;height:9px;border-radius:50%;flex-shrink:0;background:' + c.color + ';display:inline-block;';
+        var lbl = document.createElement('span'); lbl.textContent = name;
+        opt.appendChild(dot); opt.appendChild(lbl);
+        opt.onclick = function(){
+          closePortraitPicker();
+          insertMessageAt(afterIndex, name, c.color);
+        };
+        pop.appendChild(opt);
+      });
+    }
+
+    var newCharOpt = document.createElement('div');
+    newCharOpt.className = 'portrait-picker-item';
+    newCharOpt.textContent = '+ 새 캐릭터로 대사 추가';
+    newCharOpt.onclick = function(){
+      closePortraitPicker();
+      var name = prompt('캐릭터 이름을 입력하세요', '');
+      if (!name || !name.trim()) return;
+      insertMessageAt(afterIndex, name.trim(), '#9aa0ff');
+    };
+    pop.appendChild(newCharOpt);
+
+    var narrationOpt = document.createElement('div');
+    narrationOpt.className = 'portrait-picker-item';
+    narrationOpt.textContent = '나레이션(이름 없이) 추가';
+    narrationOpt.onclick = function(){
+      closePortraitPicker();
+      insertMessageAt(afterIndex, '', '#9aa0ff');
+    };
+    pop.appendChild(narrationOpt);
+
+    var dividerOpt = document.createElement('div');
+    dividerOpt.className = 'portrait-picker-item portrait-picker-clear';
+    dividerOpt.textContent = '구분선 추가';
+    dividerOpt.onclick = function(){
+      closePortraitPicker();
+      var label = prompt('구분선에 표시할 문구 (예: 2026.07.21)', '');
+      if (label === null) return;
+      var div = { id: nextId(), type: 'divider', label: label || '　' };
+      state.entries.splice(afterIndex + 1, 0, div);
+      renderLog();
+    };
+    pop.appendChild(dividerOpt);
+
+    document.body.appendChild(pop);
+    positionPopoverAt(pop, anchorEl);
+    activePicker = pop;
+    setTimeout(function(){ document.addEventListener('mousedown', onPickerOutsideClick, true); }, 0);
+  }
+
+  function dividerRow(e){
+    var row = document.createElement('div');
+    row.className = 'divider-row';
+    var wrap = document.createElement('div'); wrap.className = 'divider-line-wrap';
+    var l1 = document.createElement('div'); l1.className = 'line';
+    var tag = document.createElement('div'); tag.className = 'tag';
+    tag.contentEditable = 'true';
+    tag.textContent = e.label;
+    tag.oninput = function(){ e.label = tag.textContent; };
+    var l2 = document.createElement('div'); l2.className = 'line';
+    wrap.appendChild(l1); wrap.appendChild(tag); wrap.appendChild(l2);
+
+    var del = document.createElement('button'); del.className='del'; del.textContent='삭제';
+    del.onclick = function(){
+      state.entries = state.entries.filter(function(x){ return x.id !== e.id; });
+      renderLog();
+    };
+    row.appendChild(wrap);
+    row.appendChild(del);
+    return row;
+  }
+
+  function msgRow(e){
+    var row = document.createElement('div');
+    row.dataset.entryId = e.id;
+    var isSystem = !!(e.name && e.name.trim().toLowerCase() === 'system');
+    var isMainTab = /^(main|메인|メイン)$/i.test(String(e.tab || '').trim());
+    var useMutedOpacity = !isMainTab && state.tabOpacity[e.tab] !== false;
+    row.className = 'msg-row' +
+      (e.isNarration ? ' is-narration' : '') +
+      (isSystem ? ' is-system' : '') +
+      (useMutedOpacity ? ' tab-muted' : '');
+    if (useMutedOpacity) row.style.setProperty('--tab-muted-opacity', String((state.tabOpacityValue || 72) / 100));
+
+    var avatar = document.createElement('div');
+    avatar.className = 'avatar';
+    avatar.title = '클릭하면 이 대사의 이미지 링크를 편집할 수 있어요';
+    var activePortrait = getEntryPortrait(e);
+    if (activePortrait) {
+      var img = document.createElement('img'); img.src = activePortrait.src; avatar.appendChild(img);
+    }
+    row.appendChild(avatar);
+
+    var body = document.createElement('div');
+    body.className = 'msg-body';
+
+    var meta = document.createElement('div');
+    meta.className = 'msg-meta';
+    if (e.name) {
+      var nameEl = document.createElement('span');
+      nameEl.className = 'msg-name';
+      nameEl.style.color = e.color;
+      nameEl.contentEditable = 'true';
+      nameEl.textContent = e.name;
+      nameEl.oninput = function(){ e.name = nameEl.textContent.trim(); rebuildCharacters(); };
+      meta.appendChild(nameEl);
+      if (!/^(main|메인|メイン)$/i.test(String(e.tab || '').trim())) {
+        var badgeEl = document.createElement('span');
+        badgeEl.className = 'tab-badge';
+        badgeEl.textContent = e.tab;
+        meta.appendChild(badgeEl);
+      }
+    }
+    body.appendChild(meta);
+
+    var textEl = document.createElement('div');
+    var plain = e.html.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g,'');
+    var rollish = isRollLine(plain);
+    var rollResult = rollish ? classifyRollResult(plain) : null;
+    textEl.className = 'msg-text' + (rollish ? ' roll' : '') + (rollResult ? ' roll-' + rollResult : '');
+    textEl.contentEditable = 'true';
+    textEl.innerHTML = e.html;
+    textEl.style.color = '';
+    textEl.oninput = function(){
+      e.html = stripColorRuleSpans(textEl.innerHTML);
+      rebuildCharacters();
+    };
+    body.appendChild(textEl);
+
+    var imgRow = document.createElement('div');
+    imgRow.className = 'msg-img-row';
+    var imgLabel = document.createElement('span');
+    imgLabel.className = 'msg-img-label';
+    imgLabel.textContent = '이미지';
+    var imgInput = document.createElement('input');
+    imgInput.type = 'text';
+    imgInput.className = 'msg-img-input';
+    imgInput.placeholder = '이미지 링크 (비우면 표시 안 함)';
+    imgInput.value = e.avatarSrc || '';
+    imgInput.oninput = function(){
+      e.avatarSrc = imgInput.value.trim();
+      refreshAvatar(row, e);
+    };
+    imgRow.appendChild(imgLabel);
+    imgRow.appendChild(imgInput);
+    body.appendChild(imgRow);
+
+    avatar.onclick = function(){
+      var isOpen = imgRow.classList.toggle('open');
+      if (isOpen) imgInput.focus();
+    };
+
+    row.appendChild(body);
+
+    var ctrl = document.createElement('div');
+    ctrl.className = 'msg-controls';
+    var swatchRow = document.createElement('div');
+    swatchRow.className = 'swatch-hex-row';
+    var swatchDot = document.createElement('span');
+    swatchDot.className = 'swatch';
+    swatchDot.style.background = toHex6(e.color);
+    var colorInput = document.createElement('input');
+    colorInput.type = 'text';
+    colorInput.className = 'swatch-hex-input';
+    colorInput.maxLength = 7;
+    colorInput.value = toHex6(e.color);
+    colorInput.title = '이 대사만 색상 변경 (#rrggbb)';
+    colorInput.oninput = function(){
+      var norm = normalizeHex(colorInput.value);
+      if (!norm) { swatchDot.classList.add('invalid'); return; }
+      swatchDot.classList.remove('invalid');
+      swatchDot.style.background = norm;
+      e.color = norm;
+      if (e.name) row.querySelector('.msg-name').style.color = norm;
+    };
+    swatchRow.appendChild(swatchDot);
+    swatchRow.appendChild(colorInput);
+    ctrl.appendChild(swatchRow);
+
+    var delBtn = document.createElement('button');
+    delBtn.className = 'del-hover-danger';
+    delBtn.textContent = '×';
+    delBtn.title = '이 항목 삭제';
+    delBtn.onclick = function(){
+      state.entries = state.entries.filter(function(x){ return x.id !== e.id; });
+      rebuildCharacters();
+      renderLog();
+      updateFindMatches(true);
+    };
+    ctrl.appendChild(delBtn);
+    row.appendChild(ctrl);
+
+    return row;
+  }
+
+  function refreshAvatar(row, e){
+    var avatar = row.querySelector('.avatar');
+    var p = getEntryPortrait(e);
+    avatar.innerHTML = '';
+    if (p) {
+      var img = document.createElement('img'); img.src = p.src; avatar.appendChild(img);
+    }
+  }
+
+
+  var findInput = document.getElementById('findInput');
+  var replaceInput = document.getElementById('replaceInput');
+  var findStatus = document.getElementById('findStatus');
+  var findMatches = [];
+  var findCursor = -1;
+
+  function entrySearchText(e){
+    if (e.type !== 'msg') return '';
+    var d = document.createElement('div'); d.innerHTML = e.html || '';
+    return (e.name || '') + '\n' + (d.textContent || '');
+  }
+  function updateFindMatches(resetCursor){
+    var q = findInput.value;
+    findMatches = [];
+    document.querySelectorAll('.msg-row.search-hit').forEach(function(el){ el.classList.remove('search-hit'); });
+    if (!q) { findCursor = -1; findStatus.textContent = state.entries.length ? '찾을 내용을 입력하세요.' : '로그를 불러오면 사용할 수 있어요.'; return; }
+    var needle = q.toLocaleLowerCase();
+    state.entries.forEach(function(e){ if (e.type === 'msg' && entrySearchText(e).toLocaleLowerCase().includes(needle)) findMatches.push(e.id); });
+    if (resetCursor) findCursor = -1;
+    findStatus.textContent = findMatches.length ? (findMatches.length + '개 발견') : '일치하는 내용이 없어요.';
+  }
+  function focusFindMatch(step){
+    updateFindMatches(false);
+    if (!findMatches.length) return;
+    findCursor = (findCursor + step + findMatches.length) % findMatches.length;
+    var row = document.querySelector('.msg-row[data-entry-id="' + findMatches[findCursor] + '"]');
+    if (row) { row.classList.add('search-hit'); row.scrollIntoView({behavior:'smooth',block:'center'}); }
+    findStatus.textContent = (findCursor + 1) + ' / ' + findMatches.length;
+  }
+  function replaceInHtmlText(html, find, replacement, replaceAll){
+    var box = document.createElement('div'); box.innerHTML = html || '';
+    var walker = document.createTreeWalker(box, NodeFilter.SHOW_TEXT);
+    var nodes = [], n; while ((n = walker.nextNode())) nodes.push(n);
+    var changed = 0;
+    nodes.some(function(node){
+      var text = node.nodeValue, low = text.toLocaleLowerCase(), needle = find.toLocaleLowerCase(), pos = low.indexOf(needle);
+      if (pos < 0) return false;
+      if (replaceAll) {
+        var re = new RegExp(escapeRegex(find), 'gi');
+        var before = node.nodeValue; node.nodeValue = before.replace(re, replacement); changed += (before.match(re) || []).length; return false;
+      }
+      node.nodeValue = text.slice(0,pos) + replacement + text.slice(pos + find.length); changed++; return true;
+    });
+    return {html:box.innerHTML, changed:changed};
+  }
+  function replaceCurrent(){
+    var find = findInput.value; if (!find) return;
+    updateFindMatches(false); if (!findMatches.length) return;
+    if (findCursor < 0) findCursor = 0;
+    var e = state.entries.find(function(x){ return x.id === findMatches[findCursor]; }); if (!e) return;
+    var replacement = replaceInput.value, changed = 0;
+    var ni = (e.name || '').toLocaleLowerCase().indexOf(find.toLocaleLowerCase());
+    if (ni >= 0) { e.name = e.name.slice(0,ni) + replacement + e.name.slice(ni + find.length); changed++; }
+    else { var r = replaceInHtmlText(e.html, find, replacement, false); e.html = r.html; changed += r.changed; }
+    rebuildCharacters(); renderLog(); updateFindMatches(true); findStatus.textContent = changed ? '1건 변환했어요.' : '현재 항목에서 찾지 못했어요.';
+  }
+  function replaceAllMatches(){
+    var find = findInput.value; if (!find) return;
+    var replacement = replaceInput.value, count = 0;
+    state.entries.forEach(function(e){
+      if (e.type !== 'msg') return;
+      var re = new RegExp(escapeRegex(find), 'gi');
+      var beforeName = e.name || ''; var nm = beforeName.match(re); if (nm) { e.name = beforeName.replace(re, replacement); count += nm.length; }
+      var r = replaceInHtmlText(e.html, find, replacement, true); e.html = r.html; count += r.changed;
+    });
+    rebuildCharacters(); renderLog(); updateFindMatches(true); findStatus.textContent = count ? (count + '건 변환했어요.') : '변환할 내용이 없어요.';
+  }
+  findInput.addEventListener('input', function(){ updateFindMatches(true); });
+  findInput.addEventListener('keydown', function(e){ if (e.key === 'Enter') focusFindMatch(1); });
+  document.getElementById('findNextBtn').onclick = function(){ focusFindMatch(1); };
+  document.getElementById('replaceOneBtn').onclick = replaceCurrent;
+  document.getElementById('replaceAllBtn').onclick = replaceAllMatches;
+
+  var nameFontSizeInput = document.getElementById('nameFontSizeInput');
+  var bodyFontSizeInput = document.getElementById('bodyFontSizeInput');
+  var rollFontSizeInput = document.getElementById('rollFontSizeInput');
+  function populateFontSizeSelect(select){
+    select.innerHTML = '';
+    for (var v = 8; v <= 24; v += 0.5) {
+      var val = Math.round(v * 10) / 10;
+      var opt = document.createElement('option');
+      opt.value = String(val);
+      opt.textContent = val;
+      select.appendChild(opt);
+    }
+  }
+  [nameFontSizeInput, bodyFontSizeInput, rollFontSizeInput].forEach(populateFontSizeSelect);
+  nameFontSizeInput.value = state.nameFontSize || 12;
+  bodyFontSizeInput.value = state.bodyFontSize || 11;
+  rollFontSizeInput.value = state.rollFontSize || 10;
+  function clampFontSize(value, fallback){
+    return Math.max(8, Math.min(24, Number(value) || fallback));
+  }
+  function applyFontSizes(){
+    state.nameFontSize = clampFontSize(nameFontSizeInput.value, 12);
+    state.bodyFontSize = clampFontSize(bodyFontSizeInput.value, 11);
+    state.rollFontSize = clampFontSize(rollFontSizeInput.value, 10);
+    nameFontSizeInput.value = state.nameFontSize;
+    bodyFontSizeInput.value = state.bodyFontSize;
+    rollFontSizeInput.value = state.rollFontSize;
+    document.documentElement.style.setProperty('--log-name-fs', state.nameFontSize + 'px');
+    document.documentElement.style.setProperty('--log-body-fs', state.bodyFontSize + 'px');
+    document.documentElement.style.setProperty('--log-roll-fs', state.rollFontSize + 'px');
+  }
+  [nameFontSizeInput, bodyFontSizeInput, rollFontSizeInput].forEach(function(select){
+    select.addEventListener('change', applyFontSizes);
+  });
+  applyFontSizes();
+
+  var DISPLAY_DEFAULTS = {
+    bg: '#2a2a2a', text: '#f2f2f2',
+    rollBg: '#272727', rollBorder: '#8a8a8a', rollText: '#f2f2f2',
+    rollCrit: '#22c55e', rollHard: '#34d399', rollSuccess: '#4ade80',
+    rollFail: '#f87171', rollFumble: '#dc2626'
+  };
+
+  function normalizeHex(v){
+    v = (v || '').trim();
+    if (/^#[0-9a-fA-F]{3}$/.test(v)) {
+      return '#' + v[1]+v[1] + v[2]+v[2] + v[3]+v[3];
+    }
+    if (/^#[0-9a-fA-F]{6}$/.test(v)) return v.toLowerCase();
+    return null;
+  }
+
+  function setupColorPopup(input, preview){
+    var row = input.closest('.hex-color-row');
+    preview.setAttribute('tabindex', '0');
+    preview.setAttribute('role', 'button');
+    preview.title = '색상 선택 / HEX 코드 입력';
+    function openPopup(){
+      document.querySelectorAll('.hex-color-row.open').forEach(function(el){ if (el !== row) el.classList.remove('open'); });
+      row.classList.add('open');
+      input.focus(); input.select();
+    }
+    preview.onclick = openPopup;
+    preview.onkeydown = function(e){ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPopup(); } };
+    input.onkeydown = function(e){
+      if (e.key === 'Enter' || e.key === 'Escape') { row.classList.remove('open'); preview.focus(); }
+    };
+  }
+
+  document.addEventListener('pointerdown', function(e){
+    document.querySelectorAll('.hex-color-row.open').forEach(function(row){
+      if (!row.contains(e.target)) row.classList.remove('open');
+    });
+  });
+
+  function bindHexColorInput(inputId, previewId, defaultHex, onValid){
+    var input = document.getElementById(inputId);
+    var preview = document.getElementById(previewId);
+    setupColorPopup(input, preview);
+    function apply(){
+      var norm = normalizeHex(input.value);
+      if (norm) {
+        preview.style.background = norm;
+        preview.classList.remove('invalid');
+        onValid(norm);
+      } else {
+        preview.classList.add('invalid');
+      }
+    }
+    input.oninput = apply;
+    return {
+      set: function(hex){ input.value = hex; apply(); }
+    };
+  }
+
+  function applyBgColor(v){ document.documentElement.style.setProperty('--log-bg', v); state.bgColor = v; }
+  function applyTextColor(v){ document.documentElement.style.setProperty('--msg-text-color', v); state.textColor = v; }
+
+  var bgColorCtl = bindHexColorInput('bgColorInput', 'bgColorPreview', DISPLAY_DEFAULTS.bg, applyBgColor);
+  var textColorCtl = bindHexColorInput('textColorInput', 'textColorPreview', DISPLAY_DEFAULTS.text, applyTextColor);
+  bgColorCtl.set(DISPLAY_DEFAULTS.bg);
+  textColorCtl.set(DISPLAY_DEFAULTS.text);
+
+  var displayResetBtn = document.getElementById('displayResetBtn');
+  displayResetBtn.onclick = function(){
+    bgColorCtl.set(DISPLAY_DEFAULTS.bg);
+    textColorCtl.set(DISPLAY_DEFAULTS.text);
+    nameFontSizeInput.value = 12;
+    bodyFontSizeInput.value = 11;
+    rollFontSizeInput.value = 10;
+    applyFontSizes();
+  };
+
+  function handleFiles(files){
+    var arr = Array.prototype.slice.call(files);
+    var pending = arr.length;
+    arr.forEach(function(file){
+      var reader = new FileReader();
+      reader.onload = function(){
+        var parsed = parseLogHtml(reader.result);
+        state.entries = state.entries.concat(parsed);
+        state.fileNames.push(file.name);
+        pending--;
+        if (pending === 0) {
+          rebuildTabs();
+          applyOrderReference();
+          renderFileChips();
+          renderTabChips();
+          rebuildCharacters();
+          renderLog();
+        }
+      };
+      reader.readAsText(file, 'UTF-8');
+    });
+  }
+
+  function renderOrderRefStatus(){
+    var el = document.getElementById('orderRefStatus');
+    if (!el) return;
+    if (state.orderRef && state.orderRef.length) {
+      el.textContent = state.orderRefName + ' · ' + state.orderRef.length + '줄 기준으로 정렬됨';
+      el.classList.add('on');
+    } else {
+      el.textContent = '';
+      el.classList.remove('on');
+    }
+  }
+
+  function handleOrderRefFile(file){
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      state.orderRef = parseOrderRefFile(reader.result);
+      state.orderRefName = file.name;
+      if (!state.orderRef.length) {
+        alert('이 파일에서 순서 정보를 찾지 못했습니다. 코코포리아 "로그 다운로드"로 받은 공식 내보내기 파일인지 확인해주세요.');
+        state.orderRef = null;
+        state.orderRefName = '';
+        renderOrderRefStatus();
+        return;
+      }
+      applyOrderReference();
+      renderOrderRefStatus();
+      renderLog();
+    };
+    reader.readAsText(file, 'UTF-8');
+  }
+
+  function renderFileChips(){
+    var wrap = document.getElementById('fileChips');
+    wrap.innerHTML = '';
+    state.fileNames.forEach(function(name){
+      var chip = document.createElement('div');
+      chip.className = 'file-chip';
+      var span = document.createElement('span');
+      span.textContent = name;
+      span.style.overflow='hidden'; span.style.textOverflow='ellipsis'; span.style.whiteSpace='nowrap';
+      chip.appendChild(span);
+      wrap.appendChild(chip);
+    });
+  }
+
+  var uploadBox = document.getElementById('uploadBox');
+  var fileInput = document.getElementById('fileInput');
+  uploadBox.onclick = function(){ fileInput.click(); };
+  fileInput.onchange = function(){ if (fileInput.files.length) handleFiles(fileInput.files); };
+  ['dragenter','dragover'].forEach(function(ev){
+    uploadBox.addEventListener(ev, function(e){ e.preventDefault(); uploadBox.classList.add('drag'); });
+  });
+  ['dragleave','drop'].forEach(function(ev){
+    uploadBox.addEventListener(ev, function(e){ e.preventDefault(); uploadBox.classList.remove('drag'); });
+  });
+  uploadBox.addEventListener('drop', function(e){
+    if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+  });
+
+  var orderRefBox = document.getElementById('orderRefBox');
+  var orderRefInput = document.getElementById('orderRefInput');
+  if (orderRefBox && orderRefInput) {
+    orderRefBox.onclick = function(){ orderRefInput.click(); };
+    orderRefInput.onchange = function(){ if (orderRefInput.files.length) handleOrderRefFile(orderRefInput.files[0]); };
+    ['dragenter','dragover'].forEach(function(ev){
+      orderRefBox.addEventListener(ev, function(e){ e.preventDefault(); orderRefBox.classList.add('drag'); });
+    });
+    ['dragleave','drop'].forEach(function(ev){
+      orderRefBox.addEventListener(ev, function(e){ e.preventDefault(); orderRefBox.classList.remove('drag'); });
+    });
+    orderRefBox.addEventListener('drop', function(e){
+      if (e.dataTransfer.files.length) handleOrderRefFile(e.dataTransfer.files[0]);
+    });
+  }
+
+  document.getElementById('resetBtn').onclick = function(){
+    if (!confirm('전부 초기화할까요? 되돌릴 수 없어요.')) return;
+    state = { entries:[], characters:{}, tabs:{}, tabOpacity:{}, tabOpacityValue: state.tabOpacityValue || 72, fileNames:[], orderRef:null, orderRefName:'', nameFontSize: state.nameFontSize, bodyFontSize: state.bodyFontSize, rollFontSize: state.rollFontSize, bgColor: state.bgColor, textColor: state.textColor };
+    document.getElementById('fileChips').innerHTML = '';
+    document.getElementById('tabChips').innerHTML = '';
+    document.getElementById('tabSection').style.display='none';
+    if (orderRefInput) orderRefInput.value = '';
+    renderOrderRefStatus();
+    renderLog();
+  };
+
+  function escapeHtml(s){
+    return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function buildExportHtml(){
+    var title = document.getElementById('titleInput').value.trim() || '세션 로그';
+    var visible = state.entries.filter(function(e){ return e.type==='divider' || state.tabs[e.tab] !== false; });
+    var data = visible.map(function(e){
+      if (e.type === 'divider') return { type:'divider', label:e.label || '' };
+      var portrait = getEntryPortrait(e);
+      var plain = e.html.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g,'');
+      var rollish = isRollLine(plain);
+      return {
+        type:'message', name:e.name || '', html:e.html || '', color:e.color || '',
+        portrait:portrait ? portrait.src : '', narration:!!e.isNarration,
+        system:!!(e.name && e.name.trim().toLowerCase()==='system'),
+        rollish:rollish, rollResult:rollish ? classifyRollResult(plain) : '',
+        tab:e.tab || '메인', isMain:/^(main|메인|メイン)$/i.test(String(e.tab || '').trim()),
+        muted:!/^(main|메인|メイン)$/i.test(String(e.tab || '').trim()) && state.tabOpacity[e.tab] !== false
+      };
+    });
+    var vars = {
+      font: '"Pretendard",sans-serif',
+      nameFontSize: state.nameFontSize || 12,
+      bodyFontSize: state.bodyFontSize || 11,
+      rollFontSize: state.rollFontSize || 10,
+      bg: state.bgColor || '#303131', text: state.textColor || '#c0c0c0',
+      rollBg:'#282929', rollBorder:'#3e3f3f', rollText:'#f2f2f2', crit:'#22c55e', fumble:'#dc2626', opacity:(state.tabOpacityValue || 72) / 100
+    };
+    var safeTitle = escapeHtml(title);
+    var json = JSON.stringify(data).replace(/<\/script/gi,'<\\/script');
+    return '<!DOCTYPE html>\n<html lang="ko"><head><meta charset="UTF-8"/>' +
+      '<meta name="viewport" content="width=device-width, initial-scale=1.0"/>' +
+      '<title>' + safeTitle + '</title>' +
+      '<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css"/>' +
+      '<style>' +
+      '*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:' + vars.font + ';background:#222;color:' + vars.text + '}' +
+      'body{padding:32px 16px}' +
+      '.page{width:100%;max-width:520px;margin:0 auto}' +
+      '.page-title{margin:0 0 12px;padding:0 2px;font-size:13px;font-weight:600;color:#d4d4d4;letter-spacing:.02em}' +
+      '.cclog-card{background:' + vars.bg + ';border:1px solid #3e3f3f;border-radius:16px;overflow:hidden}' +
+      '.cclog-list{padding:12px 0}.cclog-msg{display:flex;gap:14px;align-items:flex-start;padding:14px 20px;box-shadow:0 1px 0 #3a3b3b;position:relative}.cclog-msg:last-child{box-shadow:none}' +
+      '.cclog-avatar{width:34px;height:34px;object-fit:cover;object-position:top center;border-radius:50%;flex-shrink:0;margin-top:2px}.cclog-avatar-ph{width:34px;height:34px;flex-shrink:0;visibility:hidden}' +
+      '.cclog-body{flex:1;min-width:0}.cclog-name-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:2px;width:100%}.cclog-name{font-size:' + vars.nameFontSize + 'px;font-weight:600}.cclog-badge{display:inline-flex;align-items:center;max-width:110px;padding:1px 5px;border:1px solid #353c52;border-radius:4px;background:transparent;color:#6a6a7a;font-size:9px;line-height:1.35;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+      '.cclog-msg.tab-muted{opacity:' + vars.opacity + '}.cclog-msg.tab-muted:hover{opacity:' + Math.min(1, vars.opacity + .18) + '}.cclog-text{font-size:' + vars.bodyFontSize + 'px;line-height:1.55;color:' + vars.text + ';word-break:break-word;white-space:pre-wrap}.cclog-roll{display:inline-block;margin-top:3px;padding:3px 8px;background:' + vars.rollBg + ';border:1px solid ' + vars.rollBorder + ';border-radius:4px;color:' + vars.rollText + ';font-size:' + vars.rollFontSize + 'px}' +
+      '.roll-crit{color:' + vars.crit + ';border-color:' + vars.crit + ';font-weight:700}.roll-hard,.roll-success,.roll-fail{color:' + vars.rollText + ';border-color:' + vars.rollBorder + '}.roll-fumble{color:' + vars.fumble + ';border-color:' + vars.fumble + ';font-weight:700}' +
+      '.is-narration .cclog-text{font-style:italic;color:#8a8a8a}' +
+      '.is-system{justify-content:center;text-align:center}.is-system .cclog-avatar,.is-system .cclog-avatar-ph{display:none}.is-system .cclog-name,.is-system .cclog-text{font-size:' + Math.max(8, vars.bodyFontSize - 1) + 'px;color:#666;font-weight:400}' +
+      '.cclog-divider{display:flex;align-items:center;gap:10px;padding:14px 20px;color:#777;font-size:10px}.cclog-divider:before,.cclog-divider:after{content:"";height:1px;background:#3e3f3f;flex:1}' +
+      '@media(max-width:540px){body{padding:0}.page{max-width:100%}.page-title{padding:16px 16px 10px;margin:0}.cclog-card{border-radius:0;border-left:0;border-right:0}.cclog-msg{padding:14px}}' +
+      '</style></head><body><main class="page"><h1 class="page-title">' + safeTitle + '</h1><section class="cclog-card"><div class="cclog-list" id="cclog_list"></div></section></main>' +
+      '<script>(function(){var data=' + json + ';var root=document.getElementById("cclog_list");' +
+      'function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}' +
+      'root.innerHTML=data.map(function(e){if(e.type==="divider")return "<div class=\\"cclog-divider\\">"+esc(e.label)+"</div>";var cls="cclog-msg"+(e.narration?" is-narration":"")+(e.system?" is-system":"")+(e.muted?" tab-muted":"");var av=e.portrait?"<img class=\\"cclog-avatar\\" src=\\""+esc(e.portrait)+"\\" alt=\\"\\">":"<div class=\\"cclog-avatar-ph\\"></div>";var name=e.name?"<div class=\\"cclog-name-row\\"><span class=\\"cclog-name\\" style=\\"color:"+esc(e.color)+"\\">"+esc(e.name)+"</span>"+(!e.isMain?"<span class=\\"cclog-badge\\">"+esc(e.tab)+"</span>":"")+"</div>":"";var tc=e.rollish?" cclog-roll"+(e.rollResult?" roll-"+e.rollResult:""):"";return "<div class=\\""+cls+"\\"">"+av+"<div class=\\"cclog-body\\">"+name+"<div class=\\"cclog-text"+tc+"\\"">"+e.html+"</div></div></div>"}).join("");})();<\\/script></body></html>';
+  }
+
+
+  function buildTistorySnippet(){
+    var visible = state.entries.filter(function(e){ return e.type==='divider' || state.tabs[e.tab] !== false; });
+    var uid = 'cclog_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+    var data = visible.map(function(e){
+      if (e.type === 'divider') return { type:'divider', label:e.label || '' };
+      var portrait = getEntryPortrait(e);
+      var plain = e.html.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g,'');
+      var rollish = isRollLine(plain);
+      return {
+        type:'message', name:e.name || '', html:e.html || '', color:e.color || '',
+        portrait:portrait ? portrait.src : '', narration:!!e.isNarration,
+system:!!(e.name && e.name.trim().toLowerCase()==='system'),
+        rollish:rollish, rollResult:rollish ? classifyRollResult(plain) : '',
+        tab:e.tab || '메인', isMain:/^(main|메인|メイン)$/i.test(String(e.tab || '').trim()), muted:!/^(main|메인|メイン)$/i.test(String(e.tab || '').trim()) && state.tabOpacity[e.tab] !== false
+      };
+    });
+    var vars = {
+      font: '"Pretendard",sans-serif',
+      nameFontSize: state.nameFontSize || 12,
+      bodyFontSize: state.bodyFontSize || 11,
+      rollFontSize: state.rollFontSize || 10,
+      bg: state.bgColor || '#303131', text: state.textColor || '#c0c0c0',
+      rollBg:'#282929', rollBorder:'#3e3f3f', rollText:'#f2f2f2', crit:'#22c55e', fumble:'#dc2626', opacity:(state.tabOpacityValue || 72) / 100
+    };
+    var snippet = '<!-- 코코포리아 로그 · 티스토리 HTML 모드 삽입용 -->\n' +
+`<div id="${uid}" class="cclog-embed"><style>
+#${uid},#${uid} *{box-sizing:border-box}#${uid}{max-width:520px;margin:0 auto;background:${vars.bg};border:1px solid #3e3f3f;border-radius:16px;overflow:hidden;font-family:${vars.font};color:${vars.text}}
+#${uid} .cclog-list{padding:12px 0}#${uid} .cclog-msg{display:flex;gap:14px;align-items:flex-start;padding:14px 20px;box-shadow:0 1px 0 #3a3b3b;position:relative}#${uid} .cclog-msg:last-child{box-shadow:none}
+#${uid} .cclog-avatar{width:34px;height:34px;object-fit:cover;object-position:top center;border-radius:50%;flex-shrink:0;margin-top:2px}#${uid} .cclog-avatar-ph{width:34px;height:34px;flex-shrink:0;visibility:hidden}
+#${uid} .cclog-body{flex:1;min-width:0}#${uid} .cclog-name-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:2px;width:100%}#${uid} .cclog-badge{display:inline-flex;align-items:center;max-width:110px;padding:1px 5px;border:1px solid #353c52;border-radius:4px;background:transparent;color:#6a6a7a;font-size:9px;line-height:1.35;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#${uid} .cclog-msg.tab-muted{opacity:${vars.opacity}}#${uid} .cclog-msg.tab-muted:hover{opacity:${Math.min(1, vars.opacity + .18)}}#${uid} .cclog-name{font-size:${vars.nameFontSize}px;font-weight:600}#${uid} .cclog-text{font-size:${vars.bodyFontSize}px;line-height:1.55;color:${vars.text};word-break:break-word;white-space:pre-wrap}#${uid} .cclog-roll{display:inline-block;margin-top:3px;padding:3px 8px;background:${vars.rollBg};border:1px solid ${vars.rollBorder};border-radius:4px;color:${vars.rollText};font-size:${vars.rollFontSize}px}
+#${uid} .roll-crit{color:${vars.crit};border-color:${vars.crit};font-weight:700}#${uid} .roll-hard,#${uid} .roll-success,#${uid} .roll-fail{color:${vars.rollText};border-color:${vars.rollBorder}}#${uid} .roll-fumble{color:${vars.fumble};border-color:${vars.fumble};font-weight:700}
+#${uid} .is-narration .cclog-text{font-style:italic;color:#8a8a8a}
+#${uid} .is-system{justify-content:center;text-align:center}#${uid} .is-system .cclog-avatar,#${uid} .is-system .cclog-avatar-ph{display:none}#${uid} .is-system .cclog-name,#${uid} .is-system .cclog-text{font-size:${Math.max(8, vars.bodyFontSize - 1)}px;color:#666;font-weight:400}
+#${uid} .cclog-divider{display:flex;align-items:center;gap:10px;padding:14px 20px;color:#777;font-size:10px}#${uid} .cclog-divider:before,#${uid} .cclog-divider:after{content:"";height:1px;background:#3e3f3f;flex:1}
+@media(max-width:540px){#${uid}{max-width:100%;border-radius:0}#${uid} .cclog-msg{padding:14px}}
+</style><div class="cclog-list" id="${uid}_list"></div><script>(function(){
+var data=${JSON.stringify(data).replace(/<\/script/gi,'<\\/script')};var root=document.getElementById('${uid}_list');
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cclog-divider">'+esc(e.label)+'</div>';var cls='cclog-msg'+(e.narration?' is-narration':'')+(e.system?' is-system':'')+(e.muted?' tab-muted':'');var av=e.portrait?'<img class="cclog-avatar" src="'+esc(e.portrait)+'" alt="">':'<div class="cclog-avatar-ph"></div>';var name=e.name?'<div class="cclog-name-row"><span class="cclog-name" style="color:'+esc(e.color)+'">'+esc(e.name)+'</span>'+(!e.isMain?'<span class="cclog-badge">'+esc(e.tab)+'</span>':'')+'</div>':'';var tc=e.rollish?' cclog-roll'+(e.rollResult?' roll-'+e.rollResult:''):'';return '<div class="'+cls+'">'+av+'<div class="cclog-body">'+name+'<div class="cclog-text'+tc+'">'+e.html+'</div></div></div>'}).join('');
+})();<\/script></div>`;
+    return snippet;
+  }
+
+  function downloadTextFile(content, filename){
+    var blob = new Blob([content], { type:'text/html;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  document.getElementById('tistoryExportBtn').onclick = function(){
+    var title = document.getElementById('titleInput').value.trim() || 'log';
+    downloadTextFile(buildTistorySnippet(), title.replace(/[\\/:*?"<>|]/g,'_') + '_tistory.html');
+  };
+
+  document.getElementById('exportBtn').onclick = function(){
+    var html = buildExportHtml();
+    var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    var title = document.getElementById('titleInput').value.trim() || 'log';
+    a.href = url;
+    a.download = title.replace(/[\\/:*?"<>|]/g,'_') + '.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  var sidebarEl = document.getElementById('sidebar');
+  var sidebarResizer = document.getElementById('sidebarResizer');
+  (function(){
+    var dragging = false;
+    sidebarResizer.addEventListener('mousedown', function(ev){
+      dragging = true;
+      sidebarResizer.classList.add('dragging');
+      document.body.style.userSelect = 'none';
+      ev.preventDefault();
+    });
+    document.addEventListener('mousemove', function(ev){
+      if (!dragging) return;
+      var w = Math.max(240, Math.min(640, ev.clientX));
+      sidebarEl.style.width = w + 'px';
+    });
+    document.addEventListener('mouseup', function(){
+      if (!dragging) return;
+      dragging = false;
+      sidebarResizer.classList.remove('dragging');
+      document.body.style.userSelect = '';
+    });
+  })();
+
+  renderLog();
+})();
+</script>
+<script type="text/plain" id="ccfoliaHarvestSource">(async () => {
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  const clean = t => (t || '').replace(/\s+/g, ' ').trim();
+  const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const all = (root, sel) => [].slice.call((root || document).querySelectorAll(sel));
+
+  /* 채팅 목록과 그 스크롤 상자. 탭을 바꾸면 새로 그려지므로 그때마다 다시 찾는다. */
+  const findList = () => document.querySelector('ul[role="log"]')
+    || document.querySelector('ul[aria-label="룸 채팅"]')
+    || document.querySelector('ul[aria-label="ルームチャット"]')
+    || document.querySelector('[role="log"]');
+  const findScroller = list => {
+    const pick = strict => {
+      let sc = list;
+      while (sc && sc !== document.body) {
+        const oy = getComputedStyle(sc).overflowY;
+        if ((oy === 'auto' || oy === 'scroll') && (!strict || sc.scrollHeight > sc.clientHeight + 4)) return sc;
+        sc = sc.parentElement;
+      }
+      return null;
+    };
+    /* 지금 넘칠 만큼 길지 않아도 스크롤 상자는 스크롤 상자다. 한창 그리는 중이라 잠깐 짧아 보이는
+       순간에 목록 자체를 붙잡아 버리면, 그 뒤로 아무리 밀어도 화면이 움직이지 않는다. */
+    return pick(true) || pick(false) || list;
+  };
+  if (!findList()) { alert('룸 채팅 목록을 못 찾음. 룸 채팅창이 열려 있는지 확인하세요.'); return; }
+
+  /* ── 멈춤 장치 ──
+     두 번 실행하면 두 벌이 같은 스크롤바를 서로 밀어 대서 어느 쪽도 '다 읽었다'에 닿지 못한다.
+     겉으로는 끝나지 않는 스크롤로 보인다. 한 번에 한 벌만 돌게 잠근다. */
+  if (window.__ccfoliaHarvest) {
+    if (confirm('이미 로그를 모으는 중입니다.\n\n멈출까요?')) window.__ccfoliaHarvest.stop();
+    return;
+  }
+  let ABORT = false;
+  const stop = () => { ABORT = true; };
+  window.__ccfoliaHarvest = { stop: stop };
+
+  /* 다른 브라우저 탭에 가 있는 동안 브라우저는 타이머를 초당 한 번까지 늦춘다.
+     그 시간을 제한 시간에 넣으면 돌아왔을 때 한 일도 없이 시간만 다 써 버린다. 아예 세워 둔다. */
+  let hiddenMs = 0;
+  const idleWhileHidden = async () => {
+    if (!document.hidden) return;
+    const h0 = Date.now();
+    while (document.hidden && !ABORT) await wait(400);
+    hiddenMs += Date.now() - h0;
+  };
+  /* 화면에 떠 있던 시간만 세는 시계 */
+  const clock = () => { const t0 = Date.now(), h0 = hiddenMs; return () => Date.now() - t0 - (hiddenMs - h0); };
+
+  /* ── 우리가 룸 화면에 얹는 것들의 결 ──
+     배지와 대화상자는 리더와 한 몸으로 보여야 한다. 모서리는 각을 세우고(반경 0),
+     글자는 Pretendard, 색은 리더가 쓰는 zinc 계열 그대로 쓴다. */
+  const UI = {
+    paper: '#FFFFFF', subtle: '#F4F4F5', ink: '#18181B', ink2: '#27272A',
+    muted: '#71717A', faint: '#A1A1AA', line: '#E4E4E7', line2: '#D4D4D8', ng: '#B04A42',
+    font: '"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,system-ui,'
+      + '"Apple SD Gothic Neo","Malgun Gothic",sans-serif'
+  };
+  /* 룸 화면에는 Pretendard가 없다. 리더와 같은 CDN에서 한 번만 끌어온다.
+     사이트가 외부 스타일을 막으면 시스템 글꼴로 조용히 떨어질 뿐, 화면이 깨지지는 않는다. */
+  const FONT_ID = 'ccfolia-harvest-font';
+  if (!document.getElementById(FONT_ID)) {
+    const fl = document.createElement('link');
+    fl.id = FONT_ID; fl.rel = 'stylesheet'; fl.crossOrigin = 'anonymous';
+    fl.href = 'https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css';
+    (document.head || document.documentElement).appendChild(fl);
+  }
+  /* 인라인 스타일로는 :hover를 적을 수 없다. 사이트에 규칙을 심는 대신 손으로 칠한다. */
+  const hover = (el, prop, on, off) => {
+    el.addEventListener('mouseenter', () => { el.style[prop] = on; });
+    el.addEventListener('mouseleave', () => { el.style[prop] = off; });
+  };
+
+  /* 진행 상황을 화면에 띄운다. 어디까지 됐는지 보이고, 언제든 세울 수 있어야 한다. */
+  const badge = document.createElement('div');
+  badge.style.cssText = 'position:fixed;z-index:2147483647;right:16px;bottom:16px;display:flex;gap:12px;align-items:center;'
+    + 'font:600 13px/1.45 ' + UI.font + ';letter-spacing:-.01em;word-break:keep-all;'
+    + 'background:' + UI.ink + ';color:' + UI.paper + ';padding:9px 10px 9px 13px;'
+    + 'border:1px solid ' + UI.ink + ';border-radius:0;box-shadow:0 10px 30px rgba(0,0,0,.35);'
+    + 'max-width:70vw;-webkit-font-smoothing:antialiased';
+  const badgeMsg = document.createElement('span');
+  badgeMsg.textContent = '로그 수집 준비 중…';
+  const badgeBtn = document.createElement('button');
+  badgeBtn.type = 'button'; badgeBtn.textContent = '중단 (ESC)';
+  badgeBtn.style.cssText = 'font:inherit;font-weight:700;cursor:pointer;border:0;border-radius:0;'
+    + 'padding:6px 10px;background:' + UI.ng + ';color:#fff';
+  hover(badgeBtn, 'opacity', '.86', '1');
+  badgeBtn.onclick = stop;
+  badge.appendChild(badgeMsg); badge.appendChild(badgeBtn);
+  /* 대화상자를 닫으려고 우리가 쏘는 Escape까지 중단으로 읽으면 안 된다. 사람이 누른 것만 본다. */
+  const onKey = e => { if (e.key === 'Escape' && e.isTrusted) stop(); };
+  document.body.appendChild(badge);
+  addEventListener('keydown', onKey, true);
+  const say = t => { badgeMsg.textContent = t; };
+
+  const main = async () => {
+
+  /* ── 시각: 화면에 적힌 날짜 단서를 실제 시각으로 푼다 ──
+     코코포리아는 '- 今日 14:42', '昨日 23:50', '10/26 21:00'처럼 날짜를 함께 적는다.
+     수집하는 오늘을 기준으로 풀어야 맞으므로, 리더가 아니라 여기서 계산한다.
+     화면에 보이는 것만 읽는다. 앱 내부 구조는 건드리지 않는다. */
+  const CLOCK = /(\d{1,2})\s*[:\uFF1A]\s*([0-5]\d)/;
+  const stampToMs = txt => {
+    const s = clean(txt || ''), tm = CLOCK.exec(s);
+    if (!tm) return 0;
+    const hh = +tm[1], mm = +tm[2], now = new Date();
+    const mk = (y, mo, d) => new Date(y, mo, d, hh, mm, 0, 0).getTime();
+    const Y = now.getFullYear(), M = now.getMonth(), D = now.getDate();
+    if (/今日|오늘|today/i.test(s)) return mk(Y, M, D);
+    if (/一昨日|그저께|그제/.test(s)) return mk(Y, M, D - 2);
+    if (/昨日|어제|yesterday/i.test(s)) return mk(Y, M, D - 1);
+    const rest = s.replace(CLOCK, ' ');
+    const d3 = /(\d{4})\s*[\/\-.]\s*(\d{1,2})\s*[\/\-.]\s*(\d{1,2})/.exec(rest);
+    if (d3) return mk(+d3[1], +d3[2] - 1, +d3[3]);
+    const d2 = /(\d{1,2})\s*[\/\-.]\s*(\d{1,2})/.exec(rest);
+    if (d2) {
+      let t = mk(Y, +d2[1] - 1, +d2[2]);
+      if (t > now.getTime() + 864e5) t = mk(Y - 1, +d2[1] - 1, +d2[2]);   /* 해를 넘긴 로그 */
+      return t;
+    }
+    return 0;   /* 날짜 단서가 없으면 리더가 시:분으로 병합한다 */
+  };
+  const capOf = el => {
+    const c = el.querySelector('.MuiTypography-caption, span[class*="caption"]');
+    return c ? c.textContent : '';
+  };
+
+  /* ── 탭 막대 ──
+     탭 이름·언어·뱃지에 기대면 부러진다. 채팅 목록에서 위로 올라가며
+     '채팅을 품지 않는, 탭이 둘 이상인 tablist'를 찾는 구조 기반 탐색으로 간다. */
+  const findTabBar = () => {
+    const list = findList();
+    let n = list ? list.parentElement : null;
+    while (n && n !== document.body) {
+      const cand = all(n, '[role="tablist"]')
+        .filter(b => !b.contains(list) && b.querySelectorAll('[role="tab"]').length > 1);
+      if (cand.length) return cand[cand.length - 1];
+      n = n.parentElement;
+    }
+    const anyBar = all(document, '[role="tablist"]').filter(b => b.querySelectorAll('[role="tab"]').length > 1)[0];
+    if (anyBar) return anyBar;
+    /* tablist 컨테이너가 없는 판이라면, role=tab을 둘 이상 품은 부모를 탭 막대로 본다 */
+    const groups = new Map();
+    all(document, '[role="tab"]').forEach(t => {
+      const p = t.parentElement; if (!p) return;
+      groups.set(p, (groups.get(p) || 0) + 1);
+    });
+    let best = null;
+    groups.forEach((c, p) => { if (c > 1 && (!best || p.contains(list) === false)) best = best || p; });
+    return best;
+  };
+  const NORM = { 'メイン': '메인', 'Main': '메인', 'main': '메인', 'MAIN': '메인', 'Home': '메인',
+                 '情報': '정보', 'Info': '정보', 'info': '정보', 'INFO': '정보', 'インフォ': '정보' };
+  const tabName = (t, i) => {
+    const c = t.cloneNode(true);
+    /* 개수 알맹이만 떼어 낸다. MuiBadge-root(=라벨을 감싸는 껍데기)까지 지우면 이름이 통째로 날아간다. */
+    all(c, '.MuiBadge-badge, [class*="Badge-badge"], [class*="badge-badge"], sup').forEach(x => x.remove());
+    let n = clean(c.textContent);
+    /* 뱃지가 요소로 안 잡히고 글자로 붙어 나온 경우('메인0'), 그 숫자만 든 자식이 있으면 떼어 낸다 */
+    const tail = /(\d+)$/.exec(n);
+    if (tail && n.length > tail[1].length && all(t, '*').some(k => clean(k.textContent) === tail[1]))
+      n = clean(n.slice(0, -tail[1].length));
+    if (!n) n = clean(t.getAttribute('aria-label') || t.getAttribute('title') || '');
+    if (!n) { const sv = t.querySelector('[data-testid]'); if (sv) n = clean(sv.getAttribute('data-testid')).replace(/Icon$/, ''); }
+    if (!n) n = '탭' + (i + 1);
+    return NORM[n] || n;
+  };
+
+  /* 탭을 누른 뒤 목록이 실제로 갈아 끼워질 때까지 기다린다 */
+  const listSig = () => {
+    const l = findList(); if (!l) return 'x';
+    const rows = l.querySelectorAll('[data-index]');
+    let s = rows.length + '|';
+    for (let i = 0; i < rows.length && i < 3; i++) s += (rows[i].textContent || '').slice(0, 40);
+    return s;
+  };
+  const settle = async () => {
+    let prev = '', same = 0;
+    for (let i = 0; i < 45 && !ABORT; i++) {
+      await wait(120);
+      const sg = listSig();
+      if (sg === prev) { if (++same >= 5) return; } else { same = 0; prev = sg; }
+    }
+  };
+
+  /* ── 지금 열려 있는 탭 하나를 위로 끝까지 훑어 모은다 ──
+     끝을 '높이가 안 변한다'로 재면 안 된다. 코코포리아 채팅은 가상 스크롤 목록이라
+     줄을 새로 그릴 때마다 전체 높이가 '추정치'로 몇 픽셀씩 흔들린다. 다 읽고 난 뒤에도
+     그 흔들림이 세던 수를 계속 0으로 되돌려, 제한 시간까지 맨 위에서 헛돌았다.
+     그래서 진짜로 늘어나는 것 — 맨 윗줄 번호와 모은 줄 수 — 만 끝의 신호로 삼는다. */
+  /* 제한 시간은 '보통 이만큼 걸린다'가 아니라 '이보다 오래 걸리면 뭔가 잘못됐다'는 빗장이다.
+     끝은 아래의 '더 안 늘어난다' 판정이 낸다. 10000줄 넘는 방도 한 번에 끝나야 하므로 넉넉히 잡는다. */
+  const UP_MS = 45 * 60 * 1000, DOWN_MS = 45 * 60 * 1000;
+  /* 방이 얼마나 무거운지는 탭이 바뀌어도 그대로다. 메인에서 익힌 걸음 간격을 정보탭도 이어받는다. */
+  let lastDwell = 110;
+  /* 진짜 빗장은 이쪽이다 — 이만큼 아무 진전이 없으면 뭔가 잘못된 것이다.
+     반대로 조금씩이라도 나아가는 중이면 위의 총 시간까지는 끝까지 기다린다. */
+  const STALL_MS = 60 * 1000;
+  const harvest = async (name) => {
+    let list = findList(); if (!list) return [];
+    let sc = findScroller(list);
+    const store = new Map();
+    let minIdx = Infinity;
+    const grab = () => all(list, '[data-index]').forEach(el => {
+      const i = Number(el.getAttribute('data-index'));
+      if (Number.isNaN(i)) return;
+      if (i < minIdx) minIdx = i;
+      /* 시각은 반드시 HTML과 같은 요소에서, 같은 순간에 읽는다.
+         예전에는 '한 줄에 한 번이면 족하다'며 그 번호에서 처음 본 값을 붙들어 뒀다.
+         그런데 코코포리아는 옛 글을 불러올 때 data-index를 다시 매긴다. 번호는 그대로인데
+         가리키는 글만 바뀌니, 맨 앞줄에 맨 뒷줄의 시각이 남아 로그가 통째로 뒤엉켰다. */
+      store.set(i, { html: el.outerHTML, c: stampToMs(capOf(el)) });
+    });
+    const fire = () => sc.dispatchEvent(new Event('scroll'));
+    /* 목록이 통째로 갈아 끼워지는 일은 아주 흔하다 — 앱이 옛 글을 끼워 넣을 때마다 React가 다시 그린다.
+       예전에는 이걸 '탭이 바뀌었다'로 보고 훑기를 끝내 버렸다. 그래서 메인을 끝까지 올라가지도 못한 채
+       다음 탭으로 넘어갔다. 탭은 이 함수가 끝난 뒤에만 눌리므로, 여기서는 새 목록을 다시 잡고 계속 간다. */
+    const sync = () => {
+      const l = findList();
+      if (!l) return false;
+      if (l !== list) { list = l; sc = findScroller(l); swaps++; }
+      return true;
+    };
+    let swaps = 0;
+    const step = async ms => { await wait(ms); await idleWhileHidden(); return !ABORT && sync(); };
+
+    /* ── 위로 ── */
+    sc.scrollTop = sc.scrollHeight; fire(); await step(500);
+    /* 맨 윗줄이 무엇인지를 글자로 기억해 둔다. 앱이 옛 글을 끼워 넣으면서 번호를 밀어 버리는 판이면
+       data-index도 모은 줄 수도 안 늘어난다. 그때 '위로 나아갔다'를 알아볼 수 있는 유일한 단서다.
+       '처음 보는 맨 윗줄'만 진전으로 치므로, 오르내리는 동안 값이 왔다 갔다 해도 헛세지 않는다. */
+    const topSig = () => {
+      const r = list.querySelector('[data-index]');
+      return r ? (r.getAttribute('data-index') + '|' + (r.textContent || '').slice(0, 80)) : '';
+    };
+    const seenTop = new Set();
+    let idle = 0, prevMin = Infinity, prevN = -1, maxH = -1, g = 0, why = '더 없음';
+    const up = clock();
+    let lastGain = up();
+    while (g++ < 200000) {
+      if (up() >= UP_MS) { why = '총 제한 시간'; break; }
+      if (up() - lastGain >= STALL_MS) { why = '오래 멈춤'; break; }
+      grab();   /* 올라가며 지나친 줄도 그때그때 챙긴다. 도중에 멈춰도 빈손이 되지 않게. */
+      const h = Number(sc.scrollHeight) || 0;
+      const sig = sc.scrollTop <= 1 ? topSig() : '';
+      const fresh = !!sig && !seenTop.has(sig);
+      if (fresh) seenTop.add(sig);
+      if (minIdx < prevMin || store.size > prevN || h > maxH + 4 || fresh) { idle = 0; lastGain = up(); } else idle++;
+      prevMin = minIdx; prevN = store.size; if (h > maxH) maxH = h;
+      /* 느린 회선은 한 번 불러오는 데 몇 초씩 걸린다. 횟수만 세면 그 사이에 다 읽었다고 착각한다.
+         '몇 번 헛돌았나'와 '몇 초째 안 늘었나'를 함께 봐야 안전하다. */
+      if (idle >= 30 && up() - lastGain > 10000 && sc.scrollTop <= 1) { why = '더 없음'; break; }
+      if (sc.scrollTop <= 1) {
+        /* 맨 위에 붙여만 두면 앱이 '더 불러오기'를 다시 안 건다.
+           48px로는 못 깨우는 판이 있어, 반 화면쯤 내렸다 올려 확실히 다시 걸리게 한다. */
+        sc.scrollTop = Math.max(80, Math.round(Number(sc.clientHeight) * 0.5) || 200);
+        fire(); if (!(await step(110))) { why = '중단'; break; }
+        sc.scrollTop = 0; fire(); if (!(await step(220))) { why = '중단'; break; }
+      } else {
+        /* 10000줄짜리 방을 한 화면씩 기어 올라가면 몇 천 번을 돌아야 한다.
+           곧장 맨 위로 던진다. 지나친 줄은 어차피 내려오면서 줍는다. */
+        sc.scrollTop = 0; fire(); if (!(await step(140))) { why = '중단'; break; }
+      }
+      if (g % 8 === 0) say(name + ' · 과거 로그 여는 중 · ' + store.size + '줄');
+    }
+    /* 왜 멈췄는지는 항상 남긴다. 이 한 줄이면 '덜 올라갔다'의 원인을 바로 짚을 수 있다. */
+    console.log('[ccfolia] ' + name + ' · 위로 훑기 끝(' + why + ') · 맨윗번호 '
+      + (minIdx === Infinity ? '-' : minIdx) + ' · 모은 ' + store.size + '줄 · 높이 '
+      + Math.round(Number(sc.scrollHeight) || 0) + ' · 위치 ' + Math.round(Number(sc.scrollTop) || 0)
+      + ' · 목록 갈아끼움 ' + swaps + '회 · ' + Math.round(up() / 1000) + '초 · ' + g + '회전');
+    if (why !== '더 없음') console.warn('[ccfolia] ' + name + ' · 끝까지 못 올라갔을 수 있습니다 (' + why + ')');
+
+    /* ── 아래로 ──
+       위로 훑는 데 시간을 다 써도 아래로 훑기는 반드시 돌아야 한다. 그래서 시계를 따로 잰다. */
+    sc.scrollTop = 0; fire(); await step(400); grab();
+    /* 지금 화면에 그려져 있는 줄 번호의 범위. 이게 뚝 건너뛰면 그 사이를 놓친 것이다. */
+    const shownRange = () => {
+      let lo = Infinity, hi = -Infinity;
+      all(list, '[data-index]').forEach(el => {
+        const i = Number(el.getAttribute('data-index'));
+        if (Number.isNaN(i)) return;
+        if (i < lo) lo = i; if (i > hi) hi = i;
+      });
+      return { lo: lo, hi: hi };
+    };
+    /* 한 걸음의 대기 시간은 고정하면 안 된다. 방이 무거우면 그리는 속도를 앞질러 줄을 건너뛰고,
+       가벼우면 쓸데없이 느려진다. 건너뛴 게 보이면 늘리고, 잘 따라오면 조금씩 줄인다. */
+    let dwell = lastDwell, last = -1, stable = 0, prevHi = -Infinity, jumped = 0; g = 0;
+    const down = clock();
+    let lastMove = down();
+    while (g++ < 200000 && down() < DOWN_MS && down() - lastMove < STALL_MS) {
+      grab();
+      const r = shownRange();
+      if (prevHi > -Infinity && r.lo > prevHi + 1) {
+        /* 앞질렀다. 대기를 늘리고, 건너뛴 자리를 덮도록 되돌아가서 다시 내려온다. */
+        jumped++;
+        dwell = Math.min(900, Math.round(dwell * 1.6) + 20);
+        sc.scrollTop = Math.max(0, sc.scrollTop - sc.clientHeight * 1.1);
+        fire(); if (!(await step(dwell))) break;
+        grab(); prevHi = shownRange().hi;
+        continue;
+      }
+      if (r.hi > prevHi) { dwell = Math.max(70, dwell - 6); lastMove = down(); }
+      prevHi = r.hi;
+      /* 스크롤할 것이 없는 상자(=로그가 한 화면에 다 들어옴)는 처음부터 '맨 아래'로 친다.
+         높이를 못 읽는 경우도 마찬가지다. 안 그러면 끝을 영영 못 보고 빗장이 풀릴 때까지 돈다. */
+      const H = Number(sc.scrollHeight), C = Number(sc.clientHeight);
+      const canScroll = isFinite(H) && isFinite(C) && H > C + 4;
+      const atBottom = !canScroll || sc.scrollTop + C >= H - 2;
+      if (atBottom) { if (store.size === last) { if (++stable >= 6) break; } else stable = 0; last = store.size; }
+      else stable = 0;
+      /* 한 걸음은 절대 한 화면을 넘어서면 안 된다. 창을 작게 줄이면 채팅창이 120px보다도
+         낮아질 수 있는데, 그때 예전의 '최소 120px' 바닥이 오히려 한 화면을 통째로 건너뛰게 했다. */
+      sc.scrollTop += C > 0 ? Math.max(24, Math.min(Math.round(C * 0.6), C - 24)) : 120;
+      fire(); if (!(await step(dwell))) break;
+      if (g % 8 === 0) say(name + ' · 모으는 중 · ' + store.size + '줄');
+    }
+    grab();
+    lastDwell = Math.max(110, dwell);
+    if (jumped) console.log('[ccfolia] ' + name + ' · 그리기를 앞지른 횟수 ' + jumped + ' · 대기 ' + dwell + 'ms로 맞춤');
+
+    /* ── 빠진 줄 메우기 ──
+       반 화면씩 내려가도 그리는 속도가 못 따라오면 중간 줄을 놓칠 때가 있다. 줄이 많을수록 잦다.
+       번호가 이어지지 않는 자리를 찾아, 그 위치만 다시 들러 줍는다. */
+    const holes = () => {
+      let lo = Infinity, hi = -Infinity;
+      store.forEach((v, k) => { if (k < lo) lo = k; if (k > hi) hi = k; });
+      const out = [];
+      for (let i = lo; i <= hi; i++) if (!store.has(i)) out.push(i);
+      return { lo: lo, hi: hi, miss: out };
+    };
+    for (let round = 0; round < 40 && !ABORT && down() < DOWN_MS; round++) {
+      const H = holes();
+      if (!H.miss.length) break;
+      console.warn('[ccfolia] ' + name + ' · 빠진 줄 ' + H.miss.length + '개 · ' + (round + 1) + '차 보충');
+      say(name + ' · 빠진 줄 ' + H.miss.length + '개 메우는 중');
+      const per = sc.scrollHeight / Math.max(1, H.hi - H.lo + 1), before = store.size;
+      const C = Number(sc.clientHeight) || 300;
+      const slow = Math.max(300, dwell * 2);   /* 보충은 서두르지 않는다. 여기서 또 앞지르면 헛일이다. */
+      /* 빠진 번호를 이어진 덩어리로 묶는다. 덩어리 하나를 '구간'으로 보고 그 앞에 서서 천천히 지나간다.
+         점 하나를 정확히 맞히려 들면 안 된다 — per는 줄 하나당 '평균' 높이일 뿐이라, 긴 글이 섞이거나
+         창이 작으면 어림이 크게 빗나가고, 그때마다 엉뚱한 곳을 헤매다 마지막 몇 줄을 끝내 못 찾는다. */
+      const runs = [];
+      for (let m = 0; m < H.miss.length; m++) {
+        const a = H.miss[m];
+        while (m + 1 < H.miss.length && H.miss[m + 1] === H.miss[m] + 1) m++;
+        runs.push([a, H.miss[m]]);
+      }
+      for (let q = 0; q < runs.length; q++) {
+        const a = runs[q][0], b = runs[q][1];
+        if (store.has(a) && store.has(b)) continue;
+        sc.scrollTop = Math.max(0, (a - H.lo) * per - C * 1.5);   /* 구간보다 넉넉히 앞에서 출발 */
+        fire(); if (!(await step(slow))) break;
+        grab();
+        for (let k = 0; k < 16; k++) {
+          if (store.has(a) && store.has(b)) break;
+          const r = shownRange();
+          /* 이미 지나쳐 버렸으면 되돌아가고, 아직 못 미쳤으면 반 화면씩 내려간다 */
+          if (isFinite(r.lo) && r.lo > b + 1) sc.scrollTop = Math.max(0, sc.scrollTop - C * 0.9);
+          else sc.scrollTop += Math.max(24, Math.round(C * 0.45));
+          fire(); if (!(await step(slow))) break;
+          grab();
+          if (ABORT || down() >= DOWN_MS) break;
+        }
+        if (ABORT || down() >= DOWN_MS) break;
+      }
+      if (store.size === before) break;   /* 더 안 메워지면 그만 — 원래 없는 번호일 수 있다 */
+    }
+
+    /* 맨 위에 세워 둔 채 끝내면 앱이 옛 로그를 계속 불러온다. 반드시 아래로 돌려놓는다. */
+    sc.scrollTop = sc.scrollHeight; fire(); await wait(150);
+    console.log('[ccfolia] ' + name + ' · ' + store.size + '줄 모음');
+    return Array.from(store.keys()).sort((a, b) => a - b)
+      .map(i => ({ html: store.get(i).html, c: store.get(i).c }));
+  };
+
+  /* ── 탭 순회 ──
+     '어느 tablist가 채팅 것인가'를 맞히려 들면 방 구조가 조금만 달라도 부러진다.
+     후보를 넓게 모아 두고, 눌러서 채팅 목록이 실제로 바뀌는지로 판별한다. */
+  /* 탭 추가(+) 버튼. 코코포리아는 UI 언어와 무관하게 aria-label이 일본어로 고정돼 있다. */
+  const ADD_TAB_RE = /タブを追加|탭\s*추가|add\s*tab|new\s*tab/i;
+  const ADD_RE = /追加|추가|新規|作成|\badd\b|create/i;
+  const isAdder = t => {
+    const lab = (t.getAttribute('aria-label') || '') + ' ' + (t.getAttribute('title') || '');
+    if (ADD_TAB_RE.test(lab)) return true;
+    /* 라벨만 보고 자르면 '추가정보' 같은 진짜 탭까지 날아간다. 글자 없는 아이콘 버튼일 때만 넓게 본다. */
+    const noText = !clean(t.textContent);
+    if (noText && ADD_RE.test(lab)) return true;
+    const ic = t.querySelector('[data-testid]');
+    return !!(noText && ic && /add|plus|create/i.test(ic.getAttribute('data-testid') || ''));
+  };
+  const CLICKABLE = '[role="tab"], button, [role="button"]';
+  /* 숨긴 채 DOM에 남겨 두는 대화상자가 흔하다. 붙어 있는 개수가 아니라 실제로 그려졌는지를 본다. */
+  const visible = el => !!(el && el.getClientRects && el.getClientRects().length);
+  const dlgCount = () => all(document, '[role="dialog"], .MuiDialog-root, .MuiModal-root').filter(visible).length;
+  const closeDlg = async () => {
+    for (let k = 0; k < 3 && dlgCount(); k++) {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true }));
+      await wait(220);
+      if (!dlgCount()) break;
+      const bd = all(document, '.MuiBackdrop-root, [class*="ackdrop"]').filter(visible)[0];
+      if (bd) { bd.click(); await wait(220); }
+      const cls = all(document, '[role="dialog"] button, .MuiDialog-root button').filter(visible)
+        .filter(b => /閉じ|닫기|close|cancel|キャンセル|취소/i.test((b.textContent || '') + (b.getAttribute('aria-label') || '')))[0];
+      if (cls) { cls.click(); await wait(220); }
+    }
+  };
+
+  /* 탭 줄에서 후보를 집는다. role=tab만 믿으면 안 된다 —
+     실제 룸에서 기본 '메인'과 '+'에만 role=tab이 붙고, 사용자가 만든 탭(정보·잡담)은 그냥 button이었다. */
+  /* 우리가 띄운 배지의 버튼도 button이다. 후보에 섞이면 스스로 '중단'을 눌러 버린다. */
+  const pickFrom = box => box ? all(box, CLICKABLE).filter(el => !el.querySelector(CLICKABLE) && !badge.contains(el)) : [];
+  const chatBar = findTabBar();
+  const usable = ts => ts.filter(t => !isAdder(t)).length;
+
+  let cands = pickFrom(chatBar);
+  if (usable(cands) < 2) {
+    /* '+' 버튼을 닻으로 삼아 같은 줄을 다시 찾는다. 탭 줄에는 반드시 '+'가 있다. */
+    const plus = all(document, CLICKABLE).filter(t => !badge.contains(t)).filter(isAdder)[0];
+    let box = plus ? plus.parentElement : null;
+    for (let k = 0; k < 4 && box; k++) {
+      const here = pickFrom(box);
+      if (usable(here) >= 2) { cands = here; break; }
+      box = box.parentElement;
+    }
+  }
+  if (usable(cands) < 2) {   /* 그래도 안 되면 문서 전체의 role=tab으로 넓힌다 */
+    all(document, '[role="tab"]').forEach(t => { if (cands.indexOf(t) === -1) cands.push(t); });
+  }
+  const skipped = cands.filter(isAdder);
+  cands = cands.filter(t => !isAdder(t));
+  cands = cands.filter((t, i) => cands.indexOf(t) === i);   /* 같은 버튼이 두 번 들어오면 같은 탭을 두 번 긁는다 */
+
+  /* 진단은 항상 남긴다. 탭을 못 찾았을 때 이 줄들만 있으면 원인을 짚을 수 있다. */
+  const desc = t => JSON.stringify(clean(t.textContent).slice(0, 24)) + '/' + JSON.stringify(t.getAttribute('aria-label'))
+    + (t.getAttribute('aria-selected') === 'true' ? '/선택됨' : '') + (isAdder(t) ? '/추가버튼' : '');
+  const bars = all(document, '[role="tablist"]');
+  console.log('[ccfolia] 진단 · tablist ' + bars.length + '개 · role=tab ' + document.querySelectorAll('[role="tab"]').length
+    + '개 · 후보 ' + cands.length + '개' + (skipped.length ? ' · 추가버튼 ' + skipped.length + '개 제외' : ''));
+  bars.forEach((b, k) => console.log('[ccfolia] 진단 · tablist#' + k + (b === chatBar ? '(채팅에 가장 가까움)' : '')
+    + ' → ' + all(b, '[role="tab"]').map(desc).join(' , ')));
+  console.log('[ccfolia] 진단 · 후보 → ' + (cands.map(desc).join(' , ') || '(없음)'));
+
+  /* ── 수집할 탭 고르기 ──
+     '잡담'처럼 본편과 상관없는 탭까지 긁으면 시간도 오래 걸리고 결과도 지저분해진다.
+     어느 탭이 잡담인지는 방마다 다르니 규칙으로 정하지 않는다. 찾은 이름을 그대로 보여 주고 고르게 한다.
+     끈 탭은 아예 눌러 보지도 않는다. 고른 내용은 이 방에서 다음에도 그대로 뜬다. */
+  const SKIP_KEY = 'ccfolia:harvest:skip';
+  /* 저장된 적이 없으면 null. '아무것도 안 뺐다'와 '아직 고른 적 없다'를 구별해야 기본값을 쓸 수 있다. */
+  const readSkip = () => { try { const v = localStorage.getItem(SKIP_KEY); return v ? JSON.parse(v) : null; } catch (e) { return null; } };
+  /* 기본은 '메인·정보만'. 잡담 같은 곁가지 탭은 꺼진 채로 뜬다.
+     이름을 하나도 못 알아본 방이라면 아무것도 안 켜져 빈손이 되니, 그때만 전부 켠다. */
+  const CORE = ['메인', '정보'];
+  const askTabs = names => new Promise(resolve => {
+    const off = readSkip();
+    const anyCore = names.some(n => CORE.indexOf(n) >= 0);
+    const dflt = n => off ? off.indexOf(n) < 0 : (anyCore ? CORE.indexOf(n) >= 0 : true);
+
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;'
+      + 'padding:20px;background:rgba(10,11,14,.55);'
+      + 'font:15px/1.6 ' + UI.font + ';letter-spacing:-.01em;word-break:keep-all;'
+      + '-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility';
+    const card = document.createElement('div');
+    card.style.cssText = 'background:' + UI.paper + ';color:' + UI.ink + ';'
+      + 'box-sizing:border-box;border:1px solid ' + UI.line + ';border-radius:0;padding:22px;'
+      + 'width:min(94vw,430px);max-height:82vh;overflow:auto;box-shadow:0 24px 70px rgba(0,0,0,.4)';
+
+    /* 머리말 — 리더 화면의 작은 대문자 줄과 같은 결 */
+    const kick = document.createElement('div');
+    kick.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;'
+      + 'letter-spacing:.2em;color:' + UI.muted + ';margin:0 0 9px';
+    const dot = document.createElement('span');
+    dot.style.cssText = 'width:7px;height:7px;flex:0 0 7px;border-radius:0;background:' + UI.ink;
+    const kickText = document.createElement('span'); kickText.textContent = '룸 로그 수집';
+    kick.appendChild(dot); kick.appendChild(kickText);
+    const h = document.createElement('div');
+    h.style.cssText = 'font-size:19px;font-weight:700;letter-spacing:-.025em;line-height:1.25;margin:0 0 6px';
+    h.textContent = '수집할 탭 고르기';
+    const p = document.createElement('div');
+    p.style.cssText = 'font-size:12.5px;line-height:1.7;color:' + UI.muted + ';margin:0 0 16px';
+    p.textContent = '체크를 끄면 그 탭은 열지도 않고 건너뜁니다. 고른 내용은 다음 실행 때도 그대로 뜹니다.';
+
+    /* 탭 목록 — 한 줄씩 실선으로 끊는다. 켜진 줄은 진하게, 꺼진 줄은 흐리게 두어
+       무엇을 건너뛰는지 한눈에 보이게 한다. */
+    const list = document.createElement('div');
+    list.style.cssText = 'border:1px solid ' + UI.line + ';border-radius:0';
+    const rows = [];
+    const boxes = names.map((n, i) => {
+      const row = document.createElement('label');
+      row.style.cssText = 'display:flex;align-items:center;gap:11px;padding:11px 13px;cursor:pointer;'
+        + 'background:' + UI.paper + (i ? ';border-top:1px solid ' + UI.line : '');
+      /* 브라우저 기본 체크박스는 모서리가 둥글다. 각을 세운 네모를 직접 그리고,
+         진짜 입력칸은 그 위에 투명하게 겹쳐 둔다. 키보드와 라벨 동작은 그대로 남는다. */
+      const box = document.createElement('span');
+      box.style.cssText = 'position:relative;box-sizing:border-box;display:grid;place-items:center;'
+        + 'width:17px;height:17px;flex:0 0 17px;'
+        + 'border:1px solid ' + UI.line2 + ';border-radius:0;background:' + UI.paper;
+      const tick = document.createElement('span');
+      tick.textContent = '✓';
+      tick.style.cssText = 'font-size:11.5px;font-weight:700;line-height:1;color:' + UI.paper + ';pointer-events:none';
+      const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = dflt(n);
+      cb.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer';
+      box.appendChild(tick); box.appendChild(cb);
+      const nm = document.createElement('span');
+      nm.style.cssText = 'font-size:14.5px;font-weight:600;min-width:0;overflow:hidden;'
+        + 'text-overflow:ellipsis;white-space:nowrap';
+      nm.textContent = n;
+      const tag = document.createElement('span');
+      tag.style.cssText = 'margin-left:auto;flex:0 0 auto;font-size:11px;font-weight:700;'
+        + 'letter-spacing:.1em;color:' + UI.faint;
+      row.appendChild(box); row.appendChild(nm); row.appendChild(tag);
+      list.appendChild(row);
+      rows.push({ cb: cb, box: box, tick: tick, nm: nm, tag: tag });
+      cb.addEventListener('change', paint);
+      /* 키보드로 옮겨 온 자리만 테를 두른다. 마우스로 누른 자리까지 테가 남으면 지저분하다. */
+      cb.addEventListener('focus', () => {
+        let key = true; try { key = cb.matches(':focus-visible'); } catch (e) {}
+        box.style.boxShadow = key ? '0 0 0 2px ' + UI.ink : 'none';
+      });
+      cb.addEventListener('blur', () => { box.style.boxShadow = 'none'; });
+      hover(row, 'backgroundColor', UI.subtle, UI.paper);
+      return cb;
+    });
+
+    /* 아래 줄 — 전체 선택·해제는 리더 상단 바의 세그먼트와 같은 모양으로 붙여 놓는다. */
+    const foot = document.createElement('div');
+    foot.style.cssText = 'display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px';
+    const seg = document.createElement('span');
+    seg.style.cssText = 'display:inline-flex;border:1px solid ' + UI.line + ';border-radius:0;'
+      + 'overflow:hidden;background:' + UI.paper;
+    const mkSeg = (t, first) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = t;
+      b.style.cssText = 'font:inherit;font-size:12.5px;font-weight:600;line-height:1;cursor:pointer;'
+        + 'border:0;border-radius:0;padding:8px 11px;background:transparent;color:' + UI.muted
+        + (first ? '' : ';border-left:1px solid ' + UI.line);
+      hover(b, 'color', UI.ink, UI.muted);
+      seg.appendChild(b);
+      return b;
+    };
+    const bAll = mkSeg('전체 선택', true), bNone = mkSeg('전체 해제', false);
+    const cnt = document.createElement('span');
+    cnt.style.cssText = 'margin-left:auto;font-size:12px;color:' + UI.faint + ';font-variant-numeric:tabular-nums';
+    foot.appendChild(seg); foot.appendChild(cnt);
+
+    const acts = document.createElement('div');
+    acts.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;'
+      + 'margin-top:16px;padding-top:14px;border-top:1px solid ' + UI.line;
+    const mk = (t, primary) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = t;
+      b.style.cssText = 'font:inherit;font-size:13px;font-weight:600;line-height:1;cursor:pointer;'
+        + 'border-radius:0;padding:10px 15px;white-space:nowrap;transition:.15s;'
+        + (primary ? 'border:1px solid ' + UI.ink + ';background:' + UI.ink + ';color:' + UI.paper
+                   : 'border:1px solid ' + UI.line + ';background:' + UI.paper + ';color:' + UI.ink2);
+      if (primary) hover(b, 'opacity', '.86', '1'); else hover(b, 'borderColor', UI.ink, UI.line);
+      return b;
+    };
+    const bNo = mk('취소', false), bGo = mk('수집 시작', true);
+    acts.appendChild(bNo); acts.appendChild(bGo);
+
+    /* 인라인 스타일로는 :checked를 적을 수 없다. 켜짐·꺼짐을 직접 칠한다. */
+    function paint() {
+      let on = 0;
+      rows.forEach(r => {
+        const c = r.cb.checked; if (c) on++;
+        r.box.style.background = c ? UI.ink : UI.paper;
+        r.box.style.borderColor = c ? UI.ink : UI.line2;
+        r.tick.style.visibility = c ? 'visible' : 'hidden';
+        r.nm.style.color = c ? UI.ink : UI.faint;
+        r.tag.textContent = c ? '' : '건너뜀';
+      });
+      cnt.textContent = names.length + '개 탭 중 ' + on + '개 수집';
+    }
+
+    bAll.onclick = () => { boxes.forEach(b => { b.checked = true; }); paint(); };
+    bNone.onclick = () => { boxes.forEach(b => { b.checked = false; }); paint(); };
+    const done = out => { document.removeEventListener('keydown', esc, true); ov.remove(); resolve(out); };
+    function esc(e) { if (e.key === 'Escape') done(null); }
+    document.addEventListener('keydown', esc, true);
+    ov.onclick = e => { if (e.target === ov) done(null); };
+    bNo.onclick = () => done(null);
+    bGo.onclick = () => {
+      try { localStorage.setItem(SKIP_KEY, JSON.stringify(names.filter((n, i) => !boxes[i].checked))); } catch (e) {}
+      done(names.map((n, i) => boxes[i].checked));
+    };
+    [kick, h, p, list, foot, acts].forEach(el => card.appendChild(el));
+    paint();
+    ov.appendChild(card); document.body.appendChild(ov);
+    bGo.focus();
+  });
+
+  const tabNames = cands.map(tabName);
+  say('수집할 탭을 고르세요');
+  const picked = await askTabs(tabNames);
+  if (!picked) { console.log('[ccfolia] 취소했습니다.'); return; }
+  if (!picked.some(Boolean)) { alert('고른 탭이 없습니다. 하나 이상 골라 주세요.'); return; }
+  console.log('[ccfolia] 수집할 탭 → ' + tabNames.filter((n, i) => picked[i]).join(' , ')
+    + (picked.every(Boolean) ? '' : ' · 건너뜀 → ' + tabNames.filter((n, i) => !picked[i]).join(' , ')));
+
+  const packs = [], seen = {};
+  /* 지금 화면에 떠 있는 탭은 딱 하나다. 다른 막대에서 '선택됨'인 탭은 채팅과 무관하므로
+     반드시 눌러 보고 채팅이 바뀌는지 확인해야 한다. 안 그러면 같은 화면을 또 긁는다. */
+  /* 사용자가 만든 탭에는 aria-selected가 없다. 흔히 쓰이는 다른 표식도 함께 본다. */
+  const isOn = t => t.getAttribute('aria-selected') === 'true'
+    || ['true', 'page', 'step'].indexOf(t.getAttribute('aria-current')) >= 0
+    || /(^|\s)Mui-selected(\s|$)/.test(String(t.className || ''));
+  const shown = cands.filter(isOn)[0] || null;
+  /* 탭마다 제한 시간을 따로 두면 탭이 많을수록 전체가 한없이 길어진다. 총량도 따로 막는다. */
+  const run = clock(), RUN_MS = 120 * 60 * 1000;
+  for (let i = 0; i < cands.length; i++) {
+    if (ABORT) { console.warn('[ccfolia] 중단했습니다. 여기까지 모은 것만 저장합니다.'); break; }
+    if (run() > RUN_MS) { console.warn('[ccfolia] 전체 제한 시간에 걸렸습니다. 여기까지 모은 것만 저장합니다.'); break; }
+    const t = cands[i], name = tabNames[i];
+    if (!picked[i]) { console.log('[ccfolia] ' + name + ' · 고르지 않아 건너뜁니다'); continue; }
+    if (t !== shown) {
+      const d0 = dlgCount(), sig0 = listSig();
+      t.click();
+      await settle();
+      if (dlgCount() > d0) {   /* 창이 떴다 = 탭이 아니다. 닫고 건너뛴다. */
+        console.warn('[ccfolia] ' + name + ' · 창이 떠서 탭이 아니라고 보고 건너뜁니다');
+        await closeDlg();
+        continue;
+      }
+      if (listSig() === sig0) {   /* 채팅이 그대로다 = 이 탭은 채팅과 무관하다 */
+        console.log('[ccfolia] ' + name + ' · 눌러도 채팅이 바뀌지 않아 건너뜁니다');
+        continue;
+      }
+    }
+    say(name + ' 탭 수집 시작'); console.log('[ccfolia] ' + name + ' 탭 수집 시작');
+    const rows = await harvest(name);
+    if (!rows.length) { console.log('[ccfolia] ' + name + ' · 비어 있어 건너뜁니다'); continue; }
+    const sig = rows.length + '::' + rows[0].html.slice(0, 240) + '::' + rows[rows.length - 1].html.slice(-240);
+    if (seen[sig]) { console.warn('[ccfolia] ' + name + ' · ' + seen[sig] + ' 탭과 내용이 같아 건너뜁니다'); continue; }
+    seen[sig] = name;
+    packs.push({ name: name, rows: rows, primary: packs.length === 0 && cands.length > 1 });
+  }
+  /* 지금 화면이 '고르지 않은 탭'이면 되살리기도 하지 않는다. 뺐다는 뜻을 뒤집으면 안 된다. */
+  if (!packs.length && !ABORT && picked[cands.indexOf(shown)] !== false) {   /* 후보가 하나도 안 통했으면 지금 화면이라도 건진다 */
+    const rows = await harvest('메인');
+    if (rows.length) packs.push({ name: '메인', rows: rows, primary: false });
+  }
+  if (dlgCount()) await closeDlg();   /* 순회 중 열린 창이 남아 있으면 닫고 끝낸다 */
+  /* ── 여기서 그대로 끝낸다 ──
+     예전에는 '원래 보던 탭'으로 되돌려 놓았다. 그런데 마지막 탭을 다 모은 뒤 다시 탭을 눌러
+     채팅 목록을 갈아 끼우면, 방금까지 그 목록을 잡고 있던 코드와 겹쳐 오류가 잦았다.
+     탭 하나 되돌리는 건 사용자가 한 번 누르면 되는 일이다. 다 모았으면 아무것도 건드리지 않는다. */
+  say('저장하는 중…');
+
+  /* 탭을 하나밖에 못 건졌다면, 정보탭이 어디 숨어 있는지 알아낼 단서를 남긴다 */
+  if (packs.length < 2) {
+    const lst = findList();
+    let box = lst;
+    for (let k = 0; k < 5 && box && box.parentElement; k++) box = box.parentElement;
+    const btns = all(box, 'button, [role="button"], [role="tab"]')
+      .filter(b => lst && !lst.contains(b) && !badge.contains(b)).slice(0, 40)
+      .map(b => JSON.stringify(clean(b.textContent).slice(0, 18)) + '/' + JSON.stringify(b.getAttribute('aria-label')));
+    console.log('[ccfolia] 진단 · 채팅 주변 클릭 요소 ' + btns.length + '개 → ' + btns.join(' , '));
+  }
+
+  /* ── 시각이 비는 줄 메우기 ──
+     스테이터스 변화·/system 줄에는 시각이 안 찍힌다. 그런 한두 줄은 바로 옆줄에서 메우면 된다.
+     하지만 코코포리아는 오래된 글에 '2025/10/05'처럼 날짜만 보여 준다 — 시각이 화면에 아예 없다.
+     그런 줄이 수백·수천 개씩 이어지는데 이웃의 시각을 늘여 붙이면, 없는 시각을 지어내는 꼴이 된다.
+     그러면 리더는 그 지어낸 시각을 믿고 줄을 세워 로그가 엉킨다.
+     짧은 틈만 메우고 긴 구간은 0으로 남긴다. 그래야 리더가 '날짜는 알고 시각은 모르는 줄'로 보고
+     화면의 날짜를 근거로 제대로 배치한다. */
+  const GAP_MAX = 3;
+  const fill = (rows, k) => {
+    for (let i = 0; i < rows.length; i++) {
+      if (rows[i][k]) continue;
+      let j = i;
+      while (j < rows.length && !rows[j][k]) j++;
+      if (j - i <= GAP_MAX) {
+        const v = (i > 0 ? rows[i - 1][k] : 0) || (j < rows.length ? rows[j][k] : 0);
+        if (v) for (let x = i; x < j; x++) rows[x][k] = v;
+      }
+      i = j - 1;
+    }
+    return rows;
+  };
+  packs.forEach(p => fill(p.rows, 'c'));
+
+  const rowsAll = packs.reduce((a, p) => a.concat(p.rows), []);
+  if (!rowsAll.length) { alert('수집된 메시지가 없습니다. 룸 채팅창이 열려 있는지 확인하세요.'); return; }
+
+  /* 한 줄이라도 날짜를 못 읽으면 전부 버린다. 반쪽짜리 절대시각을 섞으면 병합이 되레 어긋난다.
+     그 경우 리더가 시:분만 보고 '앞으로만 훑는 병합'으로 처리한다. */
+  const nC = rowsAll.filter(r => r.c).length, useC = nC === rowsAll.length;
+  console.log('[ccfolia] 시각 출처: ' + (useC ? '화면의 날짜·시각을 그대로(분 단위)'
+    : '화면에 시각이 없는 줄이 있어, 배치는 리더에 맡깁니다')
+    + ' · 시:분까지 읽은 줄 ' + nC + '/' + rowsAll.length);
+
+  const blocks = packs.map(p => p.rows.map(r => {
+    const at = useC ? r.c : 0;
+    return '<div data-ccf-tab="' + esc(p.name) + '"' + (p.primary ? ' data-ccf-primary="1"' : '')
+      + (at ? ' data-ccf-at="' + at + '"' : '') + '>' + r.html + '</div>';
+  }).join('\n'));
+
+  const names = packs.map(p => p.name), counts = packs.map(p => p.rows.length);
+  const html = '<div id="ccfolia-log" data-tabs="' + esc(names.join(',')) + '" data-ccf-now="' + Date.now() + '">\n' + blocks.join('\n') + '\n</div>';
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+  a.download = 'ccfolia-log.html';
+  document.body.appendChild(a); a.click(); a.remove();
+  console.log('[ccfolia] 수집 완료:', names.map((n, i) => n + ' ' + counts[i] + '개').join(' / '));
+  alert((ABORT ? '중단함 · 여기까지 모았습니다 · ' : '수집 완료 · ') + names.map((n, i) => n + ' ' + counts[i] + '개').join(' · ')
+    + '\nccfolia-log.html로 저장했습니다.\n이제 이 파일을 코코포리아 로그 백업으로 끌어다 놓으세요.'
+    + (packs.length > 1 ? '' : '\n\n탭을 하나만 건졌습니다. 다른 탭을 열고 한 번 더 실행한 뒤, 받은 파일들을 함께 놓으세요.'
+      + '\n(F12 → Console의 [ccfolia] 진단 줄을 모두 복사해 두시면 원인을 짚을 수 있습니다.)'));
+  };
+
+  try { await main(); }
+  catch (e) { console.error('[ccfolia] 수집 중 오류', e); alert('수집 중 오류가 났습니다.\n' + (e && e.message ? e.message : e)); }
+  finally {
+    /* 어떻게 끝나든 흔적은 지운다. 배지가 남거나 잠금이 안 풀리면 다음 실행이 막힌다. */
+    removeEventListener('keydown', onKey, true);
+    if (badge.parentNode) badge.remove();
+    delete window.__ccfoliaHarvest;
+  }
+})();
+</script>
+<script>
+(function(){
+  "use strict";
+  var btn = document.getElementById('harvestCopyBtn');
+  var label = document.getElementById('harvestCopyLabel');
+  var srcEl = document.getElementById('ccfoliaHarvestSource');
+  if (!btn || !srcEl) return;
+  var defaultLabel = label.textContent;
+  var resetTimer = null;
+
+  function fallbackCopy(text){
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    ta.style.left = '-1000px';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    return ok;
+  }
+
+  function showResult(ok){
+    label.textContent = ok ? '복사됨!' : '복사 실패 · 직접 선택해 주세요';
+    btn.classList.toggle('is-error', !ok);
+    btn.classList.toggle('is-done', ok);
+    if (resetTimer) clearTimeout(resetTimer);
+    resetTimer = setTimeout(function(){
+      label.textContent = defaultLabel;
+      btn.classList.remove('is-done', 'is-error');
+    }, 1800);
+  }
+
+  btn.addEventListener('click', function(){
+    var code = srcEl.textContent;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(code).then(function(){ showResult(true); }, function(){ showResult(fallbackCopy(code)); });
+    } else {
+      showResult(fallbackCopy(code));
+    }
+  });
+})();
+</script>
+</body>
+</html>
