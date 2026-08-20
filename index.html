@@ -71,12 +71,39 @@
   .sidebar-head{
     padding:16px 18px 14px;
     border-bottom:1px solid var(--border-soft);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
   }
   .sidebar-head h1{
     font-size:14.5px;
     font-weight:600;
     margin:0;
     color:var(--text);
+  }
+  .sidebar-head-actions{
+    display:flex;
+    gap:8px;
+    flex-shrink:0;
+  }
+  .tv-launch-btn{
+    flex-shrink:0;
+    width:56px;
+    padding:6px 4px;
+    background:var(--bg-panel-2);
+    border:1px solid var(--border-soft);
+    border-radius:8px;
+    color:var(--text-dim);
+    font-size:10px;
+    font-weight:600;
+    line-height:1.4;
+    text-align:center;
+    cursor:pointer;
+  }
+  .tv-launch-btn:hover{
+    color:var(--accent-strong);
+    border-color:var(--accent);
   }
   .sidebar-scroll{
     flex:1;
@@ -447,6 +474,18 @@
     opacity:0; flex-shrink:0;
   }
   .msg-row:hover .msg-controls{opacity:1;}
+  .move-stack{
+    display:flex; flex-direction:column; gap:1px;
+  }
+  .msg-controls .move-btn{
+    background:var(--bg-panel-2); border:1px solid var(--border-soft);
+    color:var(--text-faint); border-radius:4px;
+    width:16px; height:12px; line-height:1;
+    font-size:7px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    padding:0;
+  }
+  .msg-controls .move-btn:hover{color:var(--accent-strong); border-color:var(--accent);}
   .msg-controls button{
     background:var(--bg-panel-2); border:1px solid var(--border-soft);
     color:var(--text-faint); border-radius:6px; width:24px; height:24px;
@@ -493,43 +532,20 @@
     #sidebarResizer{display:none;}
     #logInner{padding:0 12px;}
   }
-#topbarLeft{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  min-width:0;
-}
 #harvestBadge{
   position:relative;
   flex-shrink:0;
 }
-#harvestCopyBtn{
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  font:600 12.5px/1 inherit;
-  cursor:pointer;
-  border:1px solid var(--border);
-  border-radius:999px;
-  padding:7px 12px 7px 10px;
-  background:rgba(38,39,39,.92);
-  color:var(--accent-strong, #cfcfcf);
-  backdrop-filter:blur(2px);
-  box-shadow:0 6px 18px rgba(0,0,0,.28);
-  transition:border-color .15s, background .15s, color .15s;
-  white-space:nowrap;
-}
-#harvestCopyBtn:hover{ border-color:var(--accent); background:#2d2d2d; }
-#harvestCopyBtn.is-done{ border-color:#5fae6f; color:#8fd39e; }
-#harvestCopyBtn.is-error{ border-color:#b0524a; color:#e0958e; }
+#harvestCopyBtn.is-done{ border-color:#5fae6f !important; color:#8fd39e !important; }
+#harvestCopyBtn.is-error{ border-color:#b0524a !important; color:#e0958e !important; }
 #harvestCopyIcon{ font-size:13px; line-height:1; }
 #harvestTooltip{
   position:absolute;
   top:calc(100% + 8px);
-  left:0;
+  right:0;
   z-index:20;
-  width:min(300px, calc(100vw - 340px));
-  min-width:220px;
+  width:min(280px, calc(100vw - 40px));
+  min-width:200px;
   font-size:12px;
   line-height:1.6;
   color:#d8d8d8;
@@ -550,6 +566,80 @@
   opacity:1;
   visibility:visible;
   transform:translateY(0);
+}
+
+/* ── 탭별 로그 뷰어 (전체 페이지 전환) ── */
+/* appRoot는 레이아웃에 자기 흔적을 남기면 안 된다 — 실제 적용되는 테마(아래 viewer-ui-merge)의
+   body{display:grid; grid-template-columns:...}는 sidebar/main이 body의 "직계 자식"이라고
+   가정하고 짠 2단 그리드다. appRoot로 감싸버리면 그 그리드 칸 하나에 통째로 눌려 들어가서
+   sidebar+main이 폭 2px짜리로 찌그러진다. display:contents로 투명하게 만들어 그 가정을 지킨다. */
+#appRoot{ display:contents; }
+#tvPage{
+  display:none;
+  width:100%; height:100%;
+  flex-direction:column;
+  background:var(--bg-app);
+}
+#tvHead{
+  display:flex; align-items:center; gap:14px;
+  padding:16px 24px;
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+#tvHeadTitle{font-size:14px; font-weight:700; color:var(--text);}
+#tvHeadActions{display:flex; align-items:center; gap:8px; margin-left:auto; flex-wrap:wrap;}
+.tv-title-input{width:170px;}
+#tvBody{
+  flex:1; min-height:0;
+  display:flex; flex-direction:column;
+  padding:18px 24px 24px;
+  gap:12px;
+  overflow:hidden;
+}
+.tv-empty{
+  flex:1; display:flex; align-items:center; justify-content:center;
+  text-align:center; color:var(--text-faint); font-size:12px; line-height:1.9;
+  border:1px dashed var(--border); border-radius:10px; padding:20px;
+}
+.tv-viewer{flex:1; min-height:0; display:flex; flex-direction:column; max-width:760px; width:100%; margin:0 auto;}
+.tv-tab-bar{
+  display:flex; gap:6px; flex-wrap:wrap;
+  padding-bottom:10px;
+  flex-shrink:0;
+}
+.tv-tab-bar .tv-tab{
+  display:inline-flex; align-items:center; gap:6px;
+  background:var(--bg-panel-2); border:1px solid var(--border-soft); color:var(--text-faint);
+  border-radius:7px; padding:6px 10px; font-size:11.5px; cursor:grab;
+  max-width:180px;
+}
+.tv-tab-bar .tv-tab:hover{color:var(--text); border-color:#666;}
+.tv-tab-bar .tv-tab.active{background:#4a4b4b; color:#fff; border-color:#666; font-weight:600;}
+.tv-tab-bar .tv-tab.dragging{opacity:.4;}
+.tv-tab-bar .tv-tab.drag-over{border-color:var(--accent); box-shadow:-2px 0 0 var(--accent-strong);}
+.tv-tab-bar .tv-tab-label{
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:130px;
+  outline:none;
+}
+.tv-tab-bar .tv-tab-label[contenteditable="true"]{
+  cursor:text; white-space:normal; word-break:break-all; max-width:200px;
+}
+.tv-tab-bar .tv-tab-x{color:#777; flex-shrink:0;}
+.tv-tab-bar .tv-tab-x:hover{color:#e05a4e;}
+#tvLogScroll{
+  flex:1; min-height:0;
+  overflow-y:auto;
+  background:var(--log-bg);
+  border:1px solid var(--border-soft);
+  border-radius:12px;
+  padding:10px 0 40px;
+}
+#tvLogList{max-width:720px; margin:0 auto; padding:0 20px; font-family:var(--font-log);}
+
+@media(max-width:760px){
+  #tvHead{flex-wrap:wrap; gap:8px;}
+  #tvHeadActions{width:100%;}
+  .tv-title-input{flex:1; width:auto;}
 }
 </style>
 <style id="viewer-ui-merge">
@@ -613,6 +703,20 @@ body{
 #main{
   position:relative;
   border-radius:0 16px 16px 0;
+  overflow:hidden;
+  box-shadow:0 16px 40px rgba(0,0,0,.22);
+}
+
+/* body의 그리드는 칸이 두 개(사이드바용, 본문용)뿐이다. tvPage는 그 중 한 칸에 눌려 들어가지
+   않도록 전체 폭에 걸치게(양쪽 칸을 다 차지하게) 만들고, 카드 모양은 sidebar+main 조합과
+   맞춘다 — 탭별 로그 뷰어가 "새 페이지"로 넘어간 것처럼 화면을 넉넉히 채우게 하려는 목적. */
+#tvPage{
+  grid-column:1 / -1;
+  height:calc(100vh - 48px);
+  min-height:0;
+  background:#303131;
+  border:1px solid #3e3f3f;
+  border-radius:16px;
   overflow:hidden;
   box-shadow:0 16px 40px rgba(0,0,0,.22);
 }
@@ -784,7 +888,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
   font-variant-numeric:tabular-nums; cursor:pointer;
 }
 .font-size-select:focus{border-color:#777;background-color:#303131;}
-.tab-badge{display:inline-flex;align-items:center;max-width:110px;padding:1px 5px;border:1px solid #353c52;border-radius:4px;background:transparent;color:#6a6a7a;font-size:9px;line-height:1.35;font-weight:400;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;}
+.tab-badge{display:inline-flex;align-items:center;max-width:110px;padding:1px 5px;border:1px solid #353c52;border-radius:4px;background:transparent;color:#6a6a7a;font-size:9px;line-height:1.35;font-weight:400;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;margin-left:auto;}
 .find-replace-row{display:flex;gap:6px;margin-bottom:7px;align-items:center;}
 .find-replace-row .text-input{min-width:0;flex:1;padding:7px 9px;}
 .mini-btn{height:31px;padding:0 9px;border:1px solid #3e3f3f;border-radius:6px;background:#3a3b3b;color:#a0a0a0;font:10.5px var(--font-ui);cursor:pointer;white-space:nowrap;}
@@ -820,9 +924,20 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
 </head>
 <body>
 
+  <div id="appRoot">
   <aside id="sidebar">
     <div class="sidebar-head">
       <h1>로그 백업 편집기</h1>
+      <div class="sidebar-head-actions">
+        <div id="harvestBadge">
+          <button type="button" id="harvestCopyBtn" class="tv-launch-btn">
+            <span id="harvestCopyIcon">⧉</span><br/>
+            <span id="harvestCopyLabel">수집<br/>코드</span>
+          </button>
+          <div id="harvestTooltip">코코포리아 세션 룸에서 <b>F12</b>를 눌러 개발자 도구를 열고, <b>콘솔(Console)</b> 란에 붙여넣어 실행하세요.</div>
+        </div>
+        <button type="button" id="openTabViewerBtn" class="tv-launch-btn">탭별<br/>로그 뷰어</button>
+      </div>
     </div>
     <div class="sidebar-scroll">
 
@@ -898,7 +1013,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
 
     </div>
     <div class="sidebar-foot">
-      <div class="btn-row" style="margin-top:0;">
+      <div class="btn-row">
         <button class="btn btn-primary" id="tistoryExportBtn" disabled>티스토리 백업용</button>
         <button class="btn" id="exportBtn" disabled>일반 HTML</button>
       </div>
@@ -911,16 +1026,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
 
   <div id="main">
     <div id="topbar">
-      <div id="topbarLeft">
-        <div id="harvestBadge">
-          <button type="button" id="harvestCopyBtn">
-            <span id="harvestCopyIcon">⧉</span>
-            <span id="harvestCopyLabel">로그 수집 코드 복사</span>
-          </button>
-          <div id="harvestTooltip">코코포리아 세션 룸에서 <b>F12</b>를 눌러 개발자 도구를 열고, <b>콘솔(Console)</b> 란에 붙여넣어 실행하세요.</div>
-        </div>
-        <input class="title-input" id="titleInput" value="세션 로그" />
-      </div>
+      <input class="title-input" id="titleInput" value="세션 로그" />
       <span class="hint" id="topHint">파일을 올리면 시작돼요</span>
     </div>
     <div id="logScroll">
@@ -930,6 +1036,29 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
           이름 · 대사 · 구분선을 클릭해서 바로 수정할 수 있어요.
         </div>
         <div id="logList" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+  </div><!-- #appRoot -->
+
+  <div id="tvPage">
+    <div id="tvHead">
+      <button type="button" id="tvBackBtn" class="btn btn-ghost">← 편집기로</button>
+      <div id="tvHeadTitle">탭별 로그 뷰어</div>
+      <div id="tvHeadActions">
+        <input type="text" id="tvTitleInput" class="text-input tv-title-input" placeholder="모음 제목" value="로그 모음" />
+        <button type="button" id="tvUploadBtn" class="btn btn-primary">＋ 로그 추가</button>
+        <input type="file" id="tvFileInput" accept=".html,.htm" multiple style="display:none;" />
+        <button type="button" id="tvDownloadBtn" class="btn" disabled>다운로드</button>
+      </div>
+    </div>
+    <div id="tvBody">
+      <div id="tvEmpty" class="tv-empty">로그 파일을 올리면 여기에 탭으로 나타나요. 파일을 여러 개 골라서 한 번에 추가할 수 있어요.</div>
+      <div id="tvViewer" class="tv-viewer" style="display:none;">
+        <div id="tvTabBar" class="tv-tab-bar"></div>
+        <div id="tvLogScroll" class="tv-log-scroll">
+          <div id="tvLogList"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -1447,17 +1576,48 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     return row;
   }
 
-  function msgRow(e){
+  function moveArrayEntryBy(arr, id, dir){
+    var idx = arr.findIndex(function(x){ return x.id === id; });
+    if (idx === -1) return false;
+    var newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= arr.length) return false;
+    var item = arr.splice(idx, 1)[0];
+    arr.splice(newIdx, 0, item);
+    return true;
+  }
+
+  function mainRowHost(){
+    return {
+      isTabMuted: function(tab){
+        var isMainTab = /^(main|메인|メイン)$/i.test(String(tab || '').trim());
+        return !isMainTab && state.tabOpacity[tab] !== false;
+      },
+      tabOpacityValue: function(){ return state.tabOpacityValue || 72; },
+      removeEntry: function(id){
+        state.entries = state.entries.filter(function(x){ return x.id !== id; });
+        rebuildCharacters();
+        renderLog();
+        updateFindMatches(true);
+      },
+      onEdit: function(){ rebuildCharacters(); },
+      moveBy: function(id, dir){
+        if (moveArrayEntryBy(state.entries, id, dir)) renderLog();
+      }
+    };
+  }
+
+  function msgRow(e, host){
+    host = host || mainRowHost();
     var row = document.createElement('div');
     row.dataset.entryId = e.id;
     var isSystem = !!(e.name && e.name.trim().toLowerCase() === 'system');
     var isMainTab = /^(main|메인|メイン)$/i.test(String(e.tab || '').trim());
-    var useMutedOpacity = !isMainTab && state.tabOpacity[e.tab] !== false;
+    var useMutedOpacity = host.isTabMuted(e.tab);
     row.className = 'msg-row' +
       (e.isNarration ? ' is-narration' : '') +
       (isSystem ? ' is-system' : '') +
       (useMutedOpacity ? ' tab-muted' : '');
-    if (useMutedOpacity) row.style.setProperty('--tab-muted-opacity', String((state.tabOpacityValue || 72) / 100));
+    if (useMutedOpacity) row.style.setProperty('--tab-muted-opacity', String(host.tabOpacityValue() / 100));
 
     var avatar = document.createElement('div');
     avatar.className = 'avatar';
@@ -1479,14 +1639,14 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       nameEl.style.color = e.color;
       nameEl.contentEditable = 'true';
       nameEl.textContent = e.name;
-      nameEl.oninput = function(){ e.name = nameEl.textContent.trim(); rebuildCharacters(); };
+      nameEl.oninput = function(){ e.name = nameEl.textContent.trim(); host.onEdit(); };
       meta.appendChild(nameEl);
-      if (!/^(main|메인|メイン)$/i.test(String(e.tab || '').trim())) {
-        var badgeEl = document.createElement('span');
-        badgeEl.className = 'tab-badge';
-        badgeEl.textContent = e.tab;
-        meta.appendChild(badgeEl);
-      }
+    }
+    if (!isMainTab) {
+      var badgeEl = document.createElement('span');
+      badgeEl.className = 'tab-badge';
+      badgeEl.textContent = e.tab;
+      meta.appendChild(badgeEl);
     }
     body.appendChild(meta);
 
@@ -1500,7 +1660,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     textEl.style.color = '';
     textEl.oninput = function(){
       e.html = stripColorRuleSpans(textEl.innerHTML);
-      rebuildCharacters();
+      host.onEdit();
     };
     body.appendChild(textEl);
 
@@ -1531,6 +1691,25 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
 
     var ctrl = document.createElement('div');
     ctrl.className = 'msg-controls';
+
+    var moveStack = document.createElement('div');
+    moveStack.className = 'move-stack';
+    var moveUpBtn = document.createElement('button');
+    moveUpBtn.className = 'move-btn move-up';
+    moveUpBtn.type = 'button';
+    moveUpBtn.textContent = '▲';
+    moveUpBtn.title = '한 칸 위로 이동';
+    moveUpBtn.onclick = function(){ if (host.moveBy) host.moveBy(e.id, -1); };
+    var moveDownBtn = document.createElement('button');
+    moveDownBtn.className = 'move-btn move-down';
+    moveDownBtn.type = 'button';
+    moveDownBtn.textContent = '▼';
+    moveDownBtn.title = '한 칸 아래로 이동';
+    moveDownBtn.onclick = function(){ if (host.moveBy) host.moveBy(e.id, 1); };
+    moveStack.appendChild(moveUpBtn);
+    moveStack.appendChild(moveDownBtn);
+    ctrl.appendChild(moveStack);
+
     var swatchRow = document.createElement('div');
     swatchRow.className = 'swatch-hex-row';
     var swatchDot = document.createElement('span');
@@ -1559,10 +1738,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     delBtn.textContent = '×';
     delBtn.title = '이 항목 삭제';
     delBtn.onclick = function(){
-      state.entries = state.entries.filter(function(x){ return x.id !== e.id; });
-      rebuildCharacters();
-      renderLog();
-      updateFindMatches(true);
+      host.removeEntry(e.id);
     };
     ctrl.appendChild(delBtn);
     row.appendChild(ctrl);
@@ -1919,7 +2095,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       '.cclog-card{background:' + vars.bg + ';border:1px solid #3e3f3f;border-radius:16px;overflow:hidden}' +
       '.cclog-list{padding:12px 0}.cclog-msg{display:flex;gap:14px;align-items:flex-start;padding:14px 20px;box-shadow:0 1px 0 #3a3b3b;position:relative}.cclog-msg:last-child{box-shadow:none}' +
       '.cclog-avatar{width:34px;height:34px;object-fit:cover;object-position:top center;border-radius:50%;flex-shrink:0;margin-top:2px}.cclog-avatar-ph{width:34px;height:34px;flex-shrink:0;visibility:hidden}' +
-      '.cclog-body{flex:1;min-width:0}.cclog-name-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:2px;width:100%}.cclog-name{font-size:' + vars.nameFontSize + 'px;font-weight:600}.cclog-badge{display:inline-flex;align-items:center;max-width:110px;padding:1px 5px;border:1px solid #353c52;border-radius:4px;background:transparent;color:#6a6a7a;font-size:9px;line-height:1.35;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+      '.cclog-body{flex:1;min-width:0}.cclog-name-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:2px;width:100%}.cclog-name{font-size:' + vars.nameFontSize + 'px;font-weight:600}.cclog-badge{display:inline-flex;align-items:center;max-width:110px;padding:1px 5px;border:1px solid #353c52;border-radius:4px;background:transparent;color:#6a6a7a;font-size:9px;line-height:1.35;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-left:auto}' +
       '.cclog-msg.tab-muted{opacity:' + vars.opacity + '}.cclog-msg.tab-muted:hover{opacity:' + Math.min(1, vars.opacity + .18) + '}.cclog-text{font-size:' + vars.bodyFontSize + 'px;line-height:1.55;color:' + vars.text + ';word-break:break-word;white-space:pre-wrap}.cclog-roll{display:inline-block;margin-top:3px;padding:3px 8px;background:' + vars.rollBg + ';border:1px solid ' + vars.rollBorder + ';border-radius:4px;color:' + vars.rollText + ';font-size:' + vars.rollFontSize + 'px}' +
       '.roll-crit{color:' + vars.crit + ';border-color:' + vars.crit + ';font-weight:700}.roll-hard,.roll-success,.roll-fail{color:' + vars.rollText + ';border-color:' + vars.rollBorder + '}.roll-fumble{color:' + vars.fumble + ';border-color:' + vars.fumble + ';font-weight:700}' +
       '.is-narration{align-items:center}.is-narration .cclog-text{color:#8a8a8a}' +
@@ -1929,7 +2105,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       '</style></head><body><main class="page"><h1 class="page-title">' + safeTitle + '</h1><section class="cclog-card"><div class="cclog-list" id="cclog_list"></div></section></main>' +
       '<script>(function(){var data=' + json + ';var root=document.getElementById("cclog_list");' +
       'function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}' +
-      'root.innerHTML=data.map(function(e){if(e.type==="divider")return "<div class=\\"cclog-divider\\">"+esc(e.label)+"</div>";var cls="cclog-msg"+(e.narration?" is-narration":"")+(e.system?" is-system":"")+(e.muted?" tab-muted":"");var av=e.portrait?"<img class=\\"cclog-avatar\\" src=\\""+esc(e.portrait)+"\\" alt=\\"\\">":"<div class=\\"cclog-avatar-ph\\"></div>";var name=e.name?"<div class=\\"cclog-name-row\\"><span class=\\"cclog-name\\" style=\\"color:"+esc(e.color)+"\\">"+esc(e.name)+"</span>"+(!e.isMain?"<span class=\\"cclog-badge\\">"+esc(e.tab)+"</span>":"")+"</div>":"";var tc=e.rollish?" cclog-roll"+(e.rollResult?" roll-"+e.rollResult:""):"";return "<div class=\\""+cls+"\\"">"+av+"<div class=\\"cclog-body\\">"+name+"<div class=\\"cclog-text"+tc+"\\"">"+e.html+"</div></div></div>"}).join("");})();<\\/script></body></html>';
+      'root.innerHTML=data.map(function(e){if(e.type==="divider")return "<div class=\\"cclog-divider\\">"+esc(e.label)+"</div>";var cls="cclog-msg"+(e.narration?" is-narration":"")+(e.system?" is-system":"")+(e.muted?" tab-muted":"");var av=e.portrait?"<img class=\\"cclog-avatar\\" src=\\""+esc(e.portrait)+"\\" alt=\\"\\">":"<div class=\\"cclog-avatar-ph\\"></div>";var name=(e.name||!e.isMain)?"<div class=\\"cclog-name-row\\">"+(e.name?"<span class=\\"cclog-name\\" style=\\"color:"+esc(e.color)+"\\">"+esc(e.name)+"</span>":"")+(!e.isMain?"<span class=\\"cclog-badge\\">"+esc(e.tab)+"</span>":"")+"</div>":"";var tc=e.rollish?" cclog-roll"+(e.rollResult?" roll-"+e.rollResult:""):"";return "<div class=\\""+cls+"\\"">"+av+"<div class=\\"cclog-body\\">"+name+"<div class=\\"cclog-text"+tc+"\\"">"+e.html+"</div></div></div>"}).join("");})();<\\/script></body></html>';
   }
 
 
@@ -1962,7 +2138,7 @@ system:!!(e.name && e.name.trim().toLowerCase()==='system'),
 #${uid},#${uid} *{box-sizing:border-box}#${uid}{max-width:520px;margin:0 auto;background:${vars.bg};border:1px solid #3e3f3f;border-radius:16px;overflow:hidden;font-family:${vars.font};color:${vars.text}}
 #${uid} .cclog-list{padding:12px 0}#${uid} .cclog-msg{display:flex;gap:14px;align-items:flex-start;padding:14px 20px;box-shadow:0 1px 0 #3a3b3b;position:relative}#${uid} .cclog-msg:last-child{box-shadow:none}
 #${uid} .cclog-avatar{width:34px;height:34px;object-fit:cover;object-position:top center;border-radius:50%;flex-shrink:0;margin-top:2px}#${uid} .cclog-avatar-ph{width:34px;height:34px;flex-shrink:0;visibility:hidden}
-#${uid} .cclog-body{flex:1;min-width:0}#${uid} .cclog-name-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:2px;width:100%}#${uid} .cclog-badge{display:inline-flex;align-items:center;max-width:110px;padding:1px 5px;border:1px solid #353c52;border-radius:4px;background:transparent;color:#6a6a7a;font-size:9px;line-height:1.35;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#${uid} .cclog-msg.tab-muted{opacity:${vars.opacity}}#${uid} .cclog-msg.tab-muted:hover{opacity:${Math.min(1, vars.opacity + .18)}}#${uid} .cclog-name{font-size:${vars.nameFontSize}px;font-weight:600}#${uid} .cclog-text{font-size:${vars.bodyFontSize}px;line-height:1.55;color:${vars.text};word-break:break-word;white-space:pre-wrap}#${uid} .cclog-roll{display:inline-block;margin-top:3px;padding:3px 8px;background:${vars.rollBg};border:1px solid ${vars.rollBorder};border-radius:4px;color:${vars.rollText};font-size:${vars.rollFontSize}px}
+#${uid} .cclog-body{flex:1;min-width:0}#${uid} .cclog-name-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:2px;width:100%}#${uid} .cclog-badge{display:inline-flex;align-items:center;max-width:110px;padding:1px 5px;border:1px solid #353c52;border-radius:4px;background:transparent;color:#6a6a7a;font-size:9px;line-height:1.35;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-left:auto}#${uid} .cclog-msg.tab-muted{opacity:${vars.opacity}}#${uid} .cclog-msg.tab-muted:hover{opacity:${Math.min(1, vars.opacity + .18)}}#${uid} .cclog-name{font-size:${vars.nameFontSize}px;font-weight:600}#${uid} .cclog-text{font-size:${vars.bodyFontSize}px;line-height:1.55;color:${vars.text};word-break:break-word;white-space:pre-wrap}#${uid} .cclog-roll{display:inline-block;margin-top:3px;padding:3px 8px;background:${vars.rollBg};border:1px solid ${vars.rollBorder};border-radius:4px;color:${vars.rollText};font-size:${vars.rollFontSize}px}
 #${uid} .roll-crit{color:${vars.crit};border-color:${vars.crit};font-weight:700}#${uid} .roll-hard,#${uid} .roll-success,#${uid} .roll-fail{color:${vars.rollText};border-color:${vars.rollBorder}}#${uid} .roll-fumble{color:${vars.fumble};border-color:${vars.fumble};font-weight:700}
 #${uid} .is-narration{align-items:center}#${uid} .is-narration .cclog-text{color:#8a8a8a}
 #${uid} .is-system{justify-content:center;text-align:center}#${uid} .is-system .cclog-avatar,#${uid} .is-system .cclog-avatar-ph{display:none}#${uid} .is-system .cclog-name,#${uid} .is-system .cclog-text{font-size:${Math.max(8, vars.bodyFontSize - 1)}px;color:#666;font-weight:400}
@@ -1971,7 +2147,7 @@ system:!!(e.name && e.name.trim().toLowerCase()==='system'),
 </style><div class="cclog-list" id="${uid}_list"></div><script>(function(){
 var data=${JSON.stringify(data).replace(/<\/script/gi,'<\\/script')};var root=document.getElementById('${uid}_list');
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
-root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cclog-divider">'+esc(e.label)+'</div>';var cls='cclog-msg'+(e.narration?' is-narration':'')+(e.system?' is-system':'')+(e.muted?' tab-muted':'');var av=e.portrait?'<img class="cclog-avatar" src="'+esc(e.portrait)+'" alt="">':'<div class="cclog-avatar-ph"></div>';var name=e.name?'<div class="cclog-name-row"><span class="cclog-name" style="color:'+esc(e.color)+'">'+esc(e.name)+'</span>'+(!e.isMain?'<span class="cclog-badge">'+esc(e.tab)+'</span>':'')+'</div>':'';var tc=e.rollish?' cclog-roll'+(e.rollResult?' roll-'+e.rollResult:''):'';return '<div class="'+cls+'">'+av+'<div class="cclog-body">'+name+'<div class="cclog-text'+tc+'">'+e.html+'</div></div></div>'}).join('');
+root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cclog-divider">'+esc(e.label)+'</div>';var cls='cclog-msg'+(e.narration?' is-narration':'')+(e.system?' is-system':'')+(e.muted?' tab-muted':'');var av=e.portrait?'<img class="cclog-avatar" src="'+esc(e.portrait)+'" alt="">':'<div class="cclog-avatar-ph"></div>';var name=(e.name||!e.isMain)?'<div class="cclog-name-row">'+(e.name?'<span class="cclog-name" style="color:'+esc(e.color)+'">'+esc(e.name)+'</span>':'')+(!e.isMain?'<span class="cclog-badge">'+esc(e.tab)+'</span>':'')+'</div>':'';var tc=e.rollish?' cclog-roll'+(e.rollResult?' roll-'+e.rollResult:''):'';return '<div class="'+cls+'">'+av+'<div class="cclog-body">'+name+'<div class="cclog-text'+tc+'">'+e.html+'</div></div></div>'}).join('');
 })();<\/script></div>`;
     return snippet;
   }
@@ -2026,6 +2202,283 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
       document.body.style.userSelect = '';
     });
   })();
+
+  // ── 탭별 로그 뷰어 ──
+  // 기존 편집기 state와는 별개의 상태(tvState)로 돌아가지만, 대사 한 줄 한 줄을 그리고
+  // 고치는 화면은 msgRow()를 그대로 재사용한다 — 이름·대사·이미지 링크·색상 편집이
+  // 메인 편집기와 완전히 똑같이 동작해야 하기 때문이다. 삭제만 host를 통해 이 로그 자신의
+  // entries 배열을 건드리도록 갈아 끼운다.
+  var tvState = { logs: [], activeId: null };
+  var tvLogIdSeq = 1;
+
+  function tvActiveLog(){
+    return tvState.logs.filter(function(l){ return l.id === tvState.activeId; })[0] || null;
+  }
+
+  function tvHostFor(log){
+    return {
+      isTabMuted: function(){ return false; },
+      tabOpacityValue: function(){ return 72; },
+      removeEntry: function(id){
+        log.entries = log.entries.filter(function(x){ return x.id !== id; });
+        tvRenderList();
+      },
+      onEdit: function(){},
+      moveBy: function(id, dir){
+        if (moveArrayEntryBy(log.entries, id, dir)) tvRenderList();
+      }
+    };
+  }
+
+  var tvDragId = null;
+
+  function tvRenderTabBar(){
+    var bar = document.getElementById('tvTabBar');
+    bar.innerHTML = '';
+    tvState.logs.forEach(function(log){
+      var btn = document.createElement('div');
+      btn.className = 'tv-tab' + (log.id === tvState.activeId ? ' active' : '');
+      btn.draggable = true;
+      btn.onclick = function(ev){
+        if (ev.target.classList.contains('tv-tab-x')) return;
+        if (ev.target.isContentEditable) return;
+        tvState.activeId = log.id;
+        tvRenderTabBar();
+        tvRenderList();
+      };
+
+      // 드래그로 순서 바꾸기 — 끄는 탭의 id만 기억해뒀다가, 놓는 자리 앞에 끼워 넣는다.
+      btn.addEventListener('dragstart', function(ev){
+        tvDragId = log.id;
+        btn.classList.add('dragging');
+        ev.dataTransfer.effectAllowed = 'move';
+        try { ev.dataTransfer.setData('text/plain', log.id); } catch (e) {}
+      });
+      btn.addEventListener('dragend', function(){
+        tvDragId = null;
+        btn.classList.remove('dragging');
+        Array.prototype.forEach.call(bar.children, function(c){ c.classList.remove('drag-over'); });
+      });
+      btn.addEventListener('dragover', function(ev){
+        if (tvDragId === null || tvDragId === log.id) return;
+        ev.preventDefault();
+        ev.dataTransfer.dropEffect = 'move';
+        btn.classList.add('drag-over');
+      });
+      btn.addEventListener('dragleave', function(){
+        btn.classList.remove('drag-over');
+      });
+      btn.addEventListener('drop', function(ev){
+        ev.preventDefault();
+        btn.classList.remove('drag-over');
+        if (tvDragId === null || tvDragId === log.id) return;
+        var fromIdx = tvState.logs.findIndex(function(l){ return l.id === tvDragId; });
+        var toIdx = tvState.logs.findIndex(function(l){ return l.id === log.id; });
+        if (fromIdx === -1 || toIdx === -1) return;
+        var moved = tvState.logs.splice(fromIdx, 1)[0];
+        tvState.logs.splice(toIdx, 0, moved);
+        tvDragId = null;
+        tvRenderTabBar();
+      });
+
+      var label = document.createElement('span');
+      label.className = 'tv-tab-label';
+      label.textContent = log.title;
+      label.title = '더블클릭하면 탭 이름을 바꿀 수 있어요 · 끌어서 순서를 바꿀 수 있어요';
+      label.ondblclick = function(ev){
+        ev.stopPropagation();
+        label.contentEditable = 'true';
+        label.focus();
+        document.execCommand && window.getSelection().selectAllChildren(label);
+      };
+      var commitRename = function(){
+        label.contentEditable = 'false';
+        var v = label.textContent.trim();
+        log.title = v || log.title;
+        label.textContent = log.title;
+      };
+      label.addEventListener('blur', commitRename);
+      label.addEventListener('keydown', function(ev){
+        if (ev.key === 'Enter') { ev.preventDefault(); label.blur(); }
+        if (ev.key === 'Escape') { label.textContent = log.title; label.blur(); }
+      });
+      btn.appendChild(label);
+
+      var x = document.createElement('span');
+      x.className = 'tv-tab-x';
+      x.textContent = '✕';
+      x.title = '이 로그 빼기';
+      x.onclick = function(ev){
+        ev.stopPropagation();
+        tvState.logs = tvState.logs.filter(function(l){ return l.id !== log.id; });
+        if (tvState.activeId === log.id) {
+          tvState.activeId = tvState.logs.length ? tvState.logs[0].id : null;
+        }
+        tvRender();
+      };
+      btn.appendChild(x);
+      bar.appendChild(btn);
+    });
+  }
+
+  function tvRenderList(){
+    var list = document.getElementById('tvLogList');
+    list.innerHTML = '';
+    var log = tvActiveLog();
+    if (!log) return;
+    var host = tvHostFor(log);
+    log.entries.forEach(function(e){
+      list.appendChild(msgRow(e, host));
+    });
+  }
+
+  function tvRender(){
+    var empty = document.getElementById('tvEmpty');
+    var viewer = document.getElementById('tvViewer');
+    var dlBtn = document.getElementById('tvDownloadBtn');
+    if (!tvState.logs.length) {
+      empty.style.display = 'flex';
+      viewer.style.display = 'none';
+      dlBtn.disabled = true;
+      return;
+    }
+    empty.style.display = 'none';
+    viewer.style.display = 'flex';
+    dlBtn.disabled = false;
+    tvRenderTabBar();
+    tvRenderList();
+  }
+
+  document.getElementById('openTabViewerBtn').onclick = function(){
+    document.getElementById('appRoot').style.display = 'none';
+    document.getElementById('tvPage').style.display = 'flex';
+  };
+  document.getElementById('tvBackBtn').onclick = function(){
+    document.getElementById('tvPage').style.display = 'none';
+    // appRoot는 평소 display:contents로 레이아웃에서 투명하게 빠져 있어야 한다(CSS 기본값).
+    // 'flex'로 되돌리면 appRoot 자신이 그리드 칸 하나를 통째로 차지해버려 다시 찌그러진다.
+    document.getElementById('appRoot').style.display = '';
+  };
+
+  var tvUploadBtn = document.getElementById('tvUploadBtn');
+  var tvFileInput = document.getElementById('tvFileInput');
+  tvUploadBtn.onclick = function(){ tvFileInput.click(); };
+  tvFileInput.onchange = function(){
+    var files = Array.prototype.slice.call(tvFileInput.files);
+    if (!files.length) return;
+    var pending = files.length;
+    var firstNewId = null;
+    files.forEach(function(file){
+      var reader = new FileReader();
+      reader.onload = function(){
+        var entries = parseLogHtml(reader.result);
+        var id = 'tv' + (tvLogIdSeq++);
+        var title = file.name.replace(/\.html?$/i, '');
+        tvState.logs.push({ id: id, title: title, entries: entries });
+        if (firstNewId === null) firstNewId = id;
+        pending--;
+        if (pending === 0) {
+          if (!tvState.activeId) tvState.activeId = firstNewId;
+          tvRender();
+        }
+      };
+      reader.readAsText(file, 'UTF-8');
+    });
+    tvFileInput.value = '';
+  };
+
+  // ── 다운로드 스니펫 ──
+  // 실시간 편집 화면(msgRow)과 달리, 내보내는 결과물은 이미지·글자 크기가 고정된 정적 HTML이다.
+  // 탭 목록은 요청대로 상자 위가 아니라 상자 "안", 그것도 아래쪽에 붙인다.
+  function tvEntryToRecord(e){
+    if (e.type === 'divider') return { type:'divider', label:e.label || '' };
+    var plain = e.html.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g,'');
+    var rollish = isRollLine(plain);
+    return {
+      type:'message', name:e.name || '', html:e.html || '', color:e.color || '',
+      portrait: e.avatarSrc || '', narration:!!e.isNarration,
+      system:!!(e.name && e.name.trim().toLowerCase()==='system'),
+      rollish:rollish, rollResult:rollish ? classifyRollResult(plain) : '',
+      tab:e.tab || '메인', isMain:/^(main|메인|メイン)$/i.test(String(e.tab || '').trim())
+    };
+  }
+
+  function tvBuildSnippet(){
+    var title = document.getElementById('tvTitleInput').value.trim() || '로그 모음';
+    var uid = 'cclogtabs_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+    var panels = tvState.logs.map(function(l){ return { title: l.title, records: l.entries.map(tvEntryToRecord) }; });
+    var panelsJson = JSON.stringify(panels).replace(/<\/script/gi, '<\\/script');
+    var snippet = '<!-- 코코포리아 로그 모음 · 티스토리 HTML 모드 삽입용 · 아래 탭을 눌러 로그 전환 -->\n' +
+`<div id="${uid}" class="cclogtabs-embed"><style>
+#${uid},#${uid} *{box-sizing:border-box}
+#${uid}{max-width:640px;margin:0 auto;font-family:"Pretendard",sans-serif;color:#c0c0c0;background:#303131;border:1px solid #3e3f3f;border-radius:16px;overflow:hidden}
+#${uid} .cclogtabs-scroll{height:520px;overflow-y:auto}
+#${uid} .cclog-list{padding:12px 0}
+#${uid} .cclog-msg{display:flex;gap:14px;align-items:flex-start;padding:14px 20px;box-shadow:0 1px 0 #3a3b3b;position:relative}
+#${uid} .cclog-msg:last-child{box-shadow:none}
+#${uid} .cclog-avatar{width:34px;height:34px;object-fit:cover;object-position:top center;border-radius:50%;flex-shrink:0;margin-top:2px;background:#333}
+#${uid} .cclog-avatar-ph{width:34px;height:34px;flex-shrink:0;visibility:hidden}
+#${uid} .cclog-body{flex:1;min-width:0}
+#${uid} .cclog-name-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:2px;width:100%}
+#${uid} .cclog-name{font-size:12px;font-weight:600;color:#e4e4e4}
+#${uid} .cclog-badge{display:inline-flex;align-items:center;max-width:110px;padding:1px 5px;border:1px solid #353c52;border-radius:4px;color:#6a6a7a;font-size:9px;line-height:1.35;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;margin-left:auto}
+#${uid} .cclog-text{font-size:11px;line-height:1.55;color:#c0c0c0;word-break:break-word;white-space:pre-wrap}
+#${uid} .cclog-roll{display:inline-block;margin-top:3px;padding:3px 8px;background:#282929;border:1px solid #3e3f3f;border-radius:4px;color:#f2f2f2;font-size:10px}
+#${uid} .roll-crit{color:#22c55e;border-color:#22c55e;font-weight:700}
+#${uid} .roll-fumble{color:#dc2626;border-color:#dc2626;font-weight:700}
+#${uid} .is-narration{align-items:center}
+#${uid} .is-narration .cclog-text{color:#8a8a8a}
+#${uid} .is-system{justify-content:center;text-align:center}
+#${uid} .is-system .cclog-avatar,#${uid} .is-system .cclog-avatar-ph{display:none}
+#${uid} .is-system .cclog-name,#${uid} .is-system .cclog-text{font-size:10px;color:#666;font-weight:400}
+#${uid} .cclog-divider{display:flex;align-items:center;gap:10px;padding:14px 20px;color:#777;font-size:10px}
+#${uid} .cclog-divider:before,#${uid} .cclog-divider:after{content:"";height:1px;background:#3e3f3f;flex:1}
+#${uid} .cclogtabs-tabbar{display:flex;gap:4px;flex-wrap:wrap;padding:10px 14px;border-top:1px solid #3a3b3b;background:#2b2c2c}
+#${uid} .cclogtabs-tab{background:#232424;border:1px solid #3e3f3f;color:#8a8a8a;border-radius:7px;padding:6px 12px;font-size:12px;cursor:pointer;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#${uid} .cclogtabs-tab:hover{color:#d4d4d4;border-color:#555}
+#${uid} .cclogtabs-tab.active{background:#4a4b4b;color:#fff;border-color:#666;font-weight:600}
+@media(max-width:540px){#${uid}{max-width:100%;border-radius:0}#${uid} .cclogtabs-scroll{height:70vh}}
+</style>
+<div class="cclogtabs-scroll" id="${uid}_scroll"><div class="cclog-list" id="${uid}_list"></div></div>
+<div class="cclogtabs-tabbar" id="${uid}_tabbar"></div>
+<script>(function(){
+var panels=${panelsJson};
+var active=0;
+var tabbar=document.getElementById('${uid}_tabbar');
+var list=document.getElementById('${uid}_list');
+var scroll=document.getElementById('${uid}_scroll');
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function rowsHtml(records){
+  return records.map(function(e){
+    if(e.type==='divider') return '<div class="cclog-divider">'+esc(e.label)+'</div>';
+    var cls='cclog-msg'+(e.narration?' is-narration':'')+(e.system?' is-system':'');
+    var av=e.portrait?'<img class="cclog-avatar" src="'+esc(e.portrait)+'" alt="">':'<div class="cclog-avatar-ph"></div>';
+    var name=(e.name||!e.isMain)?'<div class="cclog-name-row">'+(e.name?'<span class="cclog-name" style="color:'+esc(e.color)+'">'+esc(e.name)+'</span>':'')+(!e.isMain?'<span class="cclog-badge">'+esc(e.tab)+'</span>':'')+'</div>':'';
+    var tc=e.rollish?' cclog-roll'+(e.rollResult?' roll-'+e.rollResult:''):'';
+    return '<div class="'+cls+'">'+av+'<div class="cclog-body">'+name+'<div class="cclog-text'+tc+'">'+e.html+'</div></div></div>';
+  }).join('');
+}
+function renderTabs(){
+  tabbar.innerHTML='';
+  panels.forEach(function(p,i){
+    var b=document.createElement('button');
+    b.type='button'; b.className='cclogtabs-tab'+(i===active?' active':''); b.textContent=p.title; b.title=p.title;
+    b.onclick=function(){ active=i; renderTabs(); renderList(); scroll.scrollTop=0; };
+    tabbar.appendChild(b);
+  });
+}
+function renderList(){
+  list.innerHTML = panels.length ? rowsHtml(panels[active].records) : '';
+}
+renderTabs(); renderList();
+})();<\/script></div>`;
+    return snippet;
+  }
+
+  document.getElementById('tvDownloadBtn').onclick = function(){
+    var title = document.getElementById('tvTitleInput').value.trim() || '로그 모음';
+    downloadTextFile(tvBuildSnippet(), title.replace(/[\\/:*?"<>|]/g,'_') + '_tabs_tistory.html');
+  };
 
   renderLog();
 })();
