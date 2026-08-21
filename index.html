@@ -492,7 +492,25 @@
   }
   .row-select-box{
     width:15px; height:15px; margin:0 2px 0 0; flex-shrink:0; cursor:pointer;
-    accent-color:var(--accent-strong);
+    appearance:none; -webkit-appearance:none;
+    background:var(--bg-panel-2);
+    border:1px solid var(--border-soft);
+    border-radius:3px;
+    position:relative;
+  }
+  .row-select-box:hover{border-color:var(--accent);}
+  .row-select-box:checked{
+    background:var(--accent-strong);
+    border-color:var(--accent-strong);
+  }
+  .row-select-box:checked::after{
+    content:'';
+    position:absolute;
+    left:4px; top:1px;
+    width:4px; height:8px;
+    border:solid #14151a;
+    border-width:0 2px 2px 0;
+    transform:rotate(45deg);
   }
   .move-stack{
     display:flex; flex-direction:column; gap:1px;
