@@ -2093,6 +2093,11 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       var reader = new FileReader();
       reader.onload = function(){
         var parsed = parseLogHtml(reader.result);
+        // 대사 내용이 빈 항목은 올릴 때 자동으로 걸러낸다("대사 빈 항목 삭제" 버튼과 같은 기준).
+        // 이미지만 있고 글자가 없는 항목은 그대로 둔다.
+        parsed = parsed.filter(function(e){
+          return !(e.type === 'msg' && !e.avatarSrc && isBlankValue(entryPlainText(e)));
+        });
         var fid = 'f' + (fileIdSeq++);
         parsed.forEach(function(e){ e.fileId = fid; });
         state.entries = state.entries.concat(parsed);
@@ -2743,6 +2748,10 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
       var reader = new FileReader();
       reader.onload = function(){
         var entries = parseLogHtml(reader.result);
+        // 대사 내용이 빈 항목은 올릴 때 자동으로 걸러낸다("대사 빈 항목 삭제" 버튼과 같은 기준).
+        entries = entries.filter(function(e){
+          return !(e.type === 'msg' && !e.avatarSrc && isBlankValue(entryPlainText(e)));
+        });
         var id = 'tv' + (tvLogIdSeq++);
         var title = file.name.replace(/\.html?$/i, '');
         tvState.logs.push({ id: id, title: title, entries: entries, orderRef: null, orderRefName: '', selectedIds: {}, selectedCount: 0 });
