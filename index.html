@@ -424,7 +424,7 @@
     border-top:1px solid var(--border-soft); margin-top:2px; padding-top:8px;
     color:var(--text-faint); font-size:11px;
   }
-  .msg-body{flex:1; min-width:0;}
+  .msg-body{flex:1; min-width:0; position:relative;}
   .msg-meta{
     display:flex; align-items:baseline; gap:6px; margin-bottom:3px;
     min-height:1px;
@@ -913,6 +913,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
 }
 .font-size-select:focus{border-color:#777;background-color:#303131;}
 .tab-badge{display:inline-flex;align-items:center;max-width:110px;padding:1px 5px;border:1px solid #353c52;border-radius:4px;background:transparent;color:#6a6a7a;font-size:9px;line-height:1.35;font-weight:400;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;margin-left:auto;}
+.tab-badge-float{position:absolute; top:1px; right:0; margin-left:0;}
 .find-replace-row{display:flex;gap:6px;margin-bottom:7px;align-items:center;}
 .find-replace-row .text-input{min-width:0;flex:1;padding:7px 9px;}
 .mini-btn{height:31px;padding:0 9px;border:1px solid #3e3f3f;border-radius:6px;background:#3a3b3b;color:#a0a0a0;font:10.5px var(--font-ui);cursor:pointer;white-space:nowrap;}
@@ -1292,7 +1293,21 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     return (d.textContent || '').replace(/\s+/g, ' ').trim();
   }
 
+  // 코코포리아 시스템(주사위봇)이 자동으로 찍는 능력치 변동 알림은 "[ 이름 ] 수치 : 전 → 후"
+  // 형식이다. 이 전/후 숫자는 실제로 같은 사건이어도 캡처한 시점에 따라(예: 그 사이 다른 판정이
+  // 하나 더 있었으면) 미묘하게 달라질 수 있어서, 숫자까지 완전히 똑같아야 매칭되는 순서 정렬
+  // 기준으로는 이런 줄들이 유독 잘 안 맞고 튕겨나간다. 이름+수치 종류만 맞으면 같은 사건으로
+  // 보고 매칭해준다.
+  var STAT_LINE_RE = /^\[\s*([^\]]+?)\s*\]\s*(\S+)\s*[:：]\s*\S+\s*→\s*\S+\s*$/;
+  function statLineLooseKey(text){
+    var m = STAT_LINE_RE.exec(String(text || '').trim());
+    if (!m) return null;
+    return 'STAT\u0000' + m[1].trim() + '\u0000' + m[2].trim();
+  }
+
   function orderMatchKey(name, text){
+    var loose = statLineLooseKey(text);
+    if (loose) return loose;
     return (name || '').trim() + '\u0000' + text;
   }
 
@@ -1769,7 +1784,10 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       nameEl.oninput = function(){ e.name = nameEl.textContent.trim(); host.onEdit(); };
       meta.appendChild(nameEl);
     }
-    if (!isMainTab) {
+    // 이름이 있을 때만 배지를 이름 옆(meta 줄)에 같이 넣는다. 이름이 없는 서술 줄까지 여기 넣으면
+    // meta가 배지 하나만으로도 한 줄 높이를 차지해버려서, 서술 줄의 "이미지와 세로 가운데 정렬"이
+    // 배지 줄 높이만큼 위로 밀려 텍스트와 어긋나 보인다. 서술 줄의 배지는 아래에서 따로 띄운다.
+    if (!isMainTab && e.name) {
       var badgeEl = document.createElement('span');
       badgeEl.className = 'tab-badge';
       badgeEl.textContent = e.tab;
@@ -1790,6 +1808,16 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       host.onEdit();
     };
     body.appendChild(textEl);
+
+    if (!isMainTab && !e.name) {
+      // 서술 줄의 탭 배지는 body 흐름 밖에서 오른쪽 위에 따로 띄운다 — 세로 가운데 정렬에
+      // 영향을 주지 않으면서도 어느 탭인지는 계속 보이게. msg-controls와 안 겹치도록
+      // body(텍스트 영역) 기준으로 띄운다.
+      var floatBadge = document.createElement('span');
+      floatBadge.className = 'tab-badge tab-badge-float';
+      floatBadge.textContent = e.tab;
+      body.appendChild(floatBadge);
+    }
 
     var imgRow = document.createElement('div');
     imgRow.className = 'msg-img-row';
@@ -2285,7 +2313,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       '.cclog-card{background:' + vars.bg + ';border:1px solid #3e3f3f;border-radius:16px;overflow:hidden}' +
       '.cclog-list{padding:12px 0}.cclog-msg{display:flex;gap:14px;align-items:flex-start;padding:14px 20px;box-shadow:0 1px 0 #3a3b3b;position:relative}.cclog-msg:last-child{box-shadow:none}' +
       '.cclog-avatar{width:34px;height:34px;object-fit:cover;object-position:top center;border-radius:50%;flex-shrink:0;margin-top:2px}.cclog-avatar-ph{width:34px;height:34px;flex-shrink:0;visibility:hidden}' +
-      '.cclog-body{flex:1;min-width:0}.cclog-name-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:2px;width:100%}.cclog-name{font-size:' + vars.nameFontSize + 'px;font-weight:600}.cclog-badge{display:inline-flex;align-items:center;max-width:110px;padding:1px 5px;border:1px solid #353c52;border-radius:4px;background:transparent;color:#6a6a7a;font-size:9px;line-height:1.35;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-left:auto}' +
+      '.cclog-body{flex:1;min-width:0;position:relative}.cclog-name-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:2px;width:100%}.cclog-name{font-size:' + vars.nameFontSize + 'px;font-weight:600}.cclog-badge{display:inline-flex;align-items:center;max-width:110px;padding:1px 5px;border:1px solid #353c52;border-radius:4px;background:transparent;color:#6a6a7a;font-size:9px;line-height:1.35;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-left:auto}.cclog-badge-float{position:absolute;top:1px;right:0;margin-left:0}' +
       '.cclog-msg.tab-muted{opacity:' + vars.opacity + '}.cclog-msg.tab-muted:hover{opacity:' + Math.min(1, vars.opacity + .18) + '}.cclog-text{font-size:' + vars.bodyFontSize + 'px;line-height:1.55;color:' + vars.text + ';word-break:break-word;white-space:pre-wrap}.cclog-roll{display:inline-block;margin-top:3px;padding:3px 8px;background:' + vars.rollBg + ';border:1px solid ' + vars.rollBorder + ';border-radius:4px;color:' + vars.rollText + ';font-size:' + vars.rollFontSize + 'px}' +
       '.roll-crit{color:' + vars.crit + ';border-color:' + vars.crit + ';font-weight:700}.roll-hard,.roll-success,.roll-fail{color:' + vars.rollText + ';border-color:' + vars.rollBorder + '}.roll-fumble{color:' + vars.fumble + ';border-color:' + vars.fumble + ';font-weight:700}' +
       '.is-narration{align-items:center}.is-narration .cclog-text{color:#8a8a8a}' +
@@ -2295,7 +2323,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       '</style></head><body><main class="page"><h1 class="page-title">' + safeTitle + '</h1><section class="cclog-card"><div class="cclog-list" id="cclog_list"></div></section></main>' +
       '<script>(function(){var data=' + json + ';var root=document.getElementById("cclog_list");' +
       'function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}' +
-      'root.innerHTML=data.map(function(e){if(e.type==="divider")return "<div class=\\"cclog-divider\\">"+esc(e.label)+"</div>";var cls="cclog-msg"+(e.narration?" is-narration":"")+(e.system?" is-system":"")+(e.muted?" tab-muted":"");var av=e.portrait?"<img class=\\"cclog-avatar\\" src=\\""+esc(e.portrait)+"\\" alt=\\"\\">":"<div class=\\"cclog-avatar-ph\\"></div>";var name=(e.name||!e.isMain)?"<div class=\\"cclog-name-row\\">"+(e.name?"<span class=\\"cclog-name\\" style=\\"color:"+esc(e.color)+"\\">"+esc(e.name)+"</span>":"")+(!e.isMain?"<span class=\\"cclog-badge\\">"+esc(e.tab)+"</span>":"")+"</div>":"";var tc=e.rollish?" cclog-roll"+(e.rollResult?" roll-"+e.rollResult:""):"";return "<div class=\\""+cls+"\\">"+av+"<div class=\\"cclog-body\\">"+name+"<div class=\\"cclog-text"+tc+"\\">"+e.html+"</div></div></div>"}).join("");})();<\/script></body></html>';
+      'root.innerHTML=data.map(function(e){if(e.type==="divider")return "<div class=\\"cclog-divider\\">"+esc(e.label)+"</div>";var cls="cclog-msg"+(e.narration?" is-narration":"")+(e.system?" is-system":"")+(e.muted?" tab-muted":"");var av=e.portrait?"<img class=\\"cclog-avatar\\" src=\\""+esc(e.portrait)+"\\" alt=\\"\\">":"<div class=\\"cclog-avatar-ph\\"></div>";var nameRow=e.name?"<div class=\\"cclog-name-row\\"><span class=\\"cclog-name\\" style=\\"color:"+esc(e.color)+"\\">"+esc(e.name)+"</span>"+(!e.isMain?"<span class=\\"cclog-badge\\">"+esc(e.tab)+"</span>":"")+"</div>":"";var floatBadge=(!e.name&&!e.isMain)?"<span class=\\"cclog-badge cclog-badge-float\\">"+esc(e.tab)+"</span>":"";var tc=e.rollish?" cclog-roll"+(e.rollResult?" roll-"+e.rollResult:""):"";return "<div class=\\""+cls+"\\">"+av+"<div class=\\"cclog-body\\">"+nameRow+floatBadge+"<div class=\\"cclog-text"+tc+"\\">"+e.html+"</div></div></div>"}).join("");})();<\/script></body></html>';
   }
 
 
@@ -2328,7 +2356,7 @@ system:!!(e.name && e.name.trim().toLowerCase()==='system'),
 #${uid},#${uid} *{box-sizing:border-box}#${uid}{max-width:520px;margin:0 auto;background:${vars.bg};border:1px solid #3e3f3f;border-radius:16px;overflow:hidden;font-family:${vars.font};color:${vars.text}}
 #${uid} .cclog-list{padding:12px 0}#${uid} .cclog-msg{display:flex;gap:14px;align-items:flex-start;padding:14px 20px;box-shadow:0 1px 0 #3a3b3b;position:relative}#${uid} .cclog-msg:last-child{box-shadow:none}
 #${uid} .cclog-avatar{width:34px;height:34px;object-fit:cover;object-position:top center;border-radius:50%;flex-shrink:0;margin-top:2px}#${uid} .cclog-avatar-ph{width:34px;height:34px;flex-shrink:0;visibility:hidden}
-#${uid} .cclog-body{flex:1;min-width:0}#${uid} .cclog-name-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:2px;width:100%}#${uid} .cclog-badge{display:inline-flex;align-items:center;max-width:110px;padding:1px 5px;border:1px solid #353c52;border-radius:4px;background:transparent;color:#6a6a7a;font-size:9px;line-height:1.35;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-left:auto}#${uid} .cclog-msg.tab-muted{opacity:${vars.opacity}}#${uid} .cclog-msg.tab-muted:hover{opacity:${Math.min(1, vars.opacity + .18)}}#${uid} .cclog-name{font-size:${vars.nameFontSize}px;font-weight:600}#${uid} .cclog-text{font-size:${vars.bodyFontSize}px;line-height:1.55;color:${vars.text};word-break:break-word;white-space:pre-wrap}#${uid} .cclog-roll{display:inline-block;margin-top:3px;padding:3px 8px;background:${vars.rollBg};border:1px solid ${vars.rollBorder};border-radius:4px;color:${vars.rollText};font-size:${vars.rollFontSize}px}
+#${uid} .cclog-body{flex:1;min-width:0;position:relative}#${uid} .cclog-name-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:2px;width:100%}#${uid} .cclog-badge{display:inline-flex;align-items:center;max-width:110px;padding:1px 5px;border:1px solid #353c52;border-radius:4px;background:transparent;color:#6a6a7a;font-size:9px;line-height:1.35;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-left:auto}#${uid} .cclog-badge-float{position:absolute;top:1px;right:0;margin-left:0}#${uid} .cclog-msg.tab-muted{opacity:${vars.opacity}}#${uid} .cclog-msg.tab-muted:hover{opacity:${Math.min(1, vars.opacity + .18)}}#${uid} .cclog-name{font-size:${vars.nameFontSize}px;font-weight:600}#${uid} .cclog-text{font-size:${vars.bodyFontSize}px;line-height:1.55;color:${vars.text};word-break:break-word;white-space:pre-wrap}#${uid} .cclog-roll{display:inline-block;margin-top:3px;padding:3px 8px;background:${vars.rollBg};border:1px solid ${vars.rollBorder};border-radius:4px;color:${vars.rollText};font-size:${vars.rollFontSize}px}
 #${uid} .roll-crit{color:${vars.crit};border-color:${vars.crit};font-weight:700}#${uid} .roll-hard,#${uid} .roll-success,#${uid} .roll-fail{color:${vars.rollText};border-color:${vars.rollBorder}}#${uid} .roll-fumble{color:${vars.fumble};border-color:${vars.fumble};font-weight:700}
 #${uid} .is-narration{align-items:center}#${uid} .is-narration .cclog-text{color:#8a8a8a}
 #${uid} .is-system .cclog-avatar,#${uid} .is-system .cclog-avatar-ph{display:none}#${uid} .is-system .cclog-name,#${uid} .is-system .cclog-text{font-size:${Math.max(8, vars.bodyFontSize - 1)}px;color:#666;font-weight:400}
@@ -2337,7 +2365,7 @@ system:!!(e.name && e.name.trim().toLowerCase()==='system'),
 </style><div class="cclog-list" id="${uid}_list"></div><script>(function(){
 var data=${JSON.stringify(data).replace(/<\/script/gi,'<\\/script')};var root=document.getElementById('${uid}_list');
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
-root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cclog-divider">'+esc(e.label)+'</div>';var cls='cclog-msg'+(e.narration?' is-narration':'')+(e.system?' is-system':'')+(e.muted?' tab-muted':'');var av=e.portrait?'<img class="cclog-avatar" src="'+esc(e.portrait)+'" alt="">':'<div class="cclog-avatar-ph"></div>';var name=(e.name||!e.isMain)?'<div class="cclog-name-row">'+(e.name?'<span class="cclog-name" style="color:'+esc(e.color)+'">'+esc(e.name)+'</span>':'')+(!e.isMain?'<span class="cclog-badge">'+esc(e.tab)+'</span>':'')+'</div>':'';var tc=e.rollish?' cclog-roll'+(e.rollResult?' roll-'+e.rollResult:''):'';return '<div class="'+cls+'">'+av+'<div class="cclog-body">'+name+'<div class="cclog-text'+tc+'">'+e.html+'</div></div></div>'}).join('');
+root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cclog-divider">'+esc(e.label)+'</div>';var cls='cclog-msg'+(e.narration?' is-narration':'')+(e.system?' is-system':'')+(e.muted?' tab-muted':'');var av=e.portrait?'<img class="cclog-avatar" src="'+esc(e.portrait)+'" alt="">':'<div class="cclog-avatar-ph"></div>';var nameRow=e.name?'<div class="cclog-name-row"><span class="cclog-name" style="color:'+esc(e.color)+'">'+esc(e.name)+'</span>'+(!e.isMain?'<span class="cclog-badge">'+esc(e.tab)+'</span>':'')+'</div>':'';var floatBadge=(!e.name&&!e.isMain)?'<span class="cclog-badge cclog-badge-float">'+esc(e.tab)+'</span>':'';var tc=e.rollish?' cclog-roll'+(e.rollResult?' roll-'+e.rollResult:''):'';return '<div class="'+cls+'">'+av+'<div class="cclog-body">'+nameRow+floatBadge+'<div class="cclog-text'+tc+'">'+e.html+'</div></div></div>'}).join('');
 })();<\/script></div>`;
     return snippet;
   }
@@ -2761,10 +2789,11 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
 #${uid} .cclog-msg:last-child{box-shadow:none}
 #${uid} .cclog-avatar{width:34px;height:34px;object-fit:cover;object-position:top center;border-radius:50%;flex-shrink:0;margin-top:2px;background:#333}
 #${uid} .cclog-avatar-ph{width:34px;height:34px;flex-shrink:0;visibility:hidden}
-#${uid} .cclog-body{flex:1;min-width:0}
+#${uid} .cclog-body{flex:1;min-width:0;position:relative}
 #${uid} .cclog-name-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:2px;width:100%}
 #${uid} .cclog-name{font-size:12px;font-weight:600;color:#e4e4e4}
 #${uid} .cclog-badge{display:inline-flex;align-items:center;max-width:110px;padding:1px 5px;border:1px solid #353c52;border-radius:4px;color:#6a6a7a;font-size:9px;line-height:1.35;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;margin-left:auto}
+#${uid} .cclog-badge-float{position:absolute;top:1px;right:0;margin-left:0}
 #${uid} .cclog-text{font-size:11px;line-height:1.55;color:#c0c0c0;word-break:break-word;white-space:pre-wrap}
 #${uid} .cclog-roll{display:inline-block;margin-top:3px;padding:3px 8px;background:#282929;border:1px solid #3e3f3f;border-radius:4px;color:#f2f2f2;font-size:10px}
 #${uid} .roll-crit{color:#22c55e;border-color:#22c55e;font-weight:700}
@@ -2795,9 +2824,10 @@ function rowsHtml(records){
     if(e.type==='divider') return '<div class="cclog-divider">'+esc(e.label)+'</div>';
     var cls='cclog-msg'+(e.narration?' is-narration':'')+(e.system?' is-system':'');
     var av=e.portrait?'<img class="cclog-avatar" src="'+esc(e.portrait)+'" alt="">':'<div class="cclog-avatar-ph"></div>';
-    var name=(e.name||!e.isMain)?'<div class="cclog-name-row">'+(e.name?'<span class="cclog-name" style="color:'+esc(e.color)+'">'+esc(e.name)+'</span>':'')+(!e.isMain?'<span class="cclog-badge">'+esc(e.tab)+'</span>':'')+'</div>':'';
+    var nameRow=e.name?'<div class="cclog-name-row"><span class="cclog-name" style="color:'+esc(e.color)+'">'+esc(e.name)+'</span>'+(!e.isMain?'<span class="cclog-badge">'+esc(e.tab)+'</span>':'')+'</div>':'';
+    var floatBadge=(!e.name&&!e.isMain)?'<span class="cclog-badge cclog-badge-float">'+esc(e.tab)+'</span>':'';
     var tc=e.rollish?' cclog-roll'+(e.rollResult?' roll-'+e.rollResult:''):'';
-    return '<div class="'+cls+'">'+av+'<div class="cclog-body">'+name+'<div class="cclog-text'+tc+'">'+e.html+'</div></div></div>';
+    return '<div class="'+cls+'">'+av+'<div class="cclog-body">'+nameRow+floatBadge+'<div class="cclog-text'+tc+'">'+e.html+'</div></div></div>';
   }).join('');
 }
 function renderTabs(){
