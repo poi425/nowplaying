@@ -2366,7 +2366,7 @@ system:!!(e.name && e.name.trim().toLowerCase()==='system'),
       rollBg:'#282929', rollBorder:'#3e3f3f', rollText:'#f2f2f2', crit:'#22c55e', fumble:'#dc2626', opacity:(state.tabOpacityValue || 72) / 100
     };
     var snippet = '<!-- 코코포리아 로그 · 티스토리 HTML 모드 삽입용 -->\n' +
-`<div class="cclog-embed-bg" style="background:${vars.bg};"><div id="${uid}" class="cclog-embed"><style>
+`<div class="cclog-embed-bg" style="background:${vars.bg};border-radius:16px;overflow:hidden;"><div id="${uid}" class="cclog-embed"><style>
 #${uid},#${uid} *{box-sizing:border-box}#${uid}{max-width:520px;margin:0 auto;background:${vars.bg};border:1px solid #3e3f3f;border-radius:16px;overflow:hidden;font-family:${vars.font};color:${vars.text}}
 #${uid} .cclog-list{padding:12px 0}#${uid} .cclog-msg{display:flex;gap:14px;align-items:flex-start;padding:14px 20px;box-shadow:0 1px 0 #3a3b3b;position:relative}#${uid} .cclog-msg:last-child{box-shadow:none}
 #${uid} .cclog-avatar{width:34px;height:34px;object-fit:cover;object-position:top center;border-radius:50%;flex-shrink:0;margin-top:2px}#${uid} .cclog-avatar-ph{width:34px;height:34px;flex-shrink:0;visibility:hidden}
@@ -2375,7 +2375,7 @@ system:!!(e.name && e.name.trim().toLowerCase()==='system'),
 #${uid} .is-narration{align-items:center}
 #${uid} .is-system .cclog-avatar,#${uid} .is-system .cclog-avatar-ph{display:none}#${uid} .is-system .cclog-name,#${uid} .is-system .cclog-text{font-size:${Math.max(8, vars.bodyFontSize - 1)}px;color:#666;font-weight:400}
 #${uid} .cclog-divider{display:flex;align-items:center;gap:10px;padding:14px 20px;color:#777;font-size:10px}#${uid} .cclog-divider:before,#${uid} .cclog-divider:after{content:"";height:1px;background:#3e3f3f;flex:1}
-@media(max-width:540px){#${uid}{max-width:100%;border-radius:0}#${uid} .cclog-msg{padding:14px}}
+@media(max-width:540px){#${uid}{max-width:100%}#${uid} .cclog-msg{padding:14px}}
 </style><div class="cclog-list" id="${uid}_list"></div><script>(function(){
 var data=${JSON.stringify(data).replace(/<\/script/gi,'<\\/script')};var root=document.getElementById('${uid}_list');
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
@@ -2795,7 +2795,7 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
     var panels = tvState.logs.map(function(l){ return { title: l.title, records: l.entries.map(tvEntryToRecord) }; });
     var panelsJson = JSON.stringify(panels).replace(/<\/script/gi, '<\\/script');
     var snippet = '<!-- 코코포리아 로그 모음 · 티스토리 HTML 모드 삽입용 · 아래 탭을 눌러 로그 전환 -->\n' +
-`<div class="cclogtabs-embed-bg" style="background:#303131;"><div id="${uid}" class="cclogtabs-embed"><style>
+`<div class="cclogtabs-embed-bg" style="background:#303131;border-radius:16px;overflow:hidden;"><div id="${uid}" class="cclogtabs-embed"><style>
 #${uid},#${uid} *{box-sizing:border-box}
 #${uid}{max-width:640px;margin:0 auto;font-family:"Pretendard",sans-serif;color:#c0c0c0;background:#303131;border:1px solid #3e3f3f;border-radius:16px;overflow:hidden}
 #${uid} .cclogtabs-scroll{height:520px;overflow-y:auto}
@@ -2822,7 +2822,7 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
 #${uid} .cclogtabs-tab{background:#232424;border:1px solid #3e3f3f;color:#8a8a8a;border-radius:7px;padding:6px 12px;font-size:12px;cursor:pointer;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #${uid} .cclogtabs-tab:hover{color:#d4d4d4;border-color:#555}
 #${uid} .cclogtabs-tab.active{background:#4a4b4b;color:#fff;border-color:#666;font-weight:600}
-@media(max-width:540px){#${uid}{max-width:100%;border-radius:0}#${uid} .cclogtabs-scroll{height:70vh}}
+@media(max-width:540px){#${uid}{max-width:100%}#${uid} .cclogtabs-scroll{height:70vh}}
 </style>
 <div class="cclogtabs-scroll" id="${uid}_scroll"><div class="cclog-list" id="${uid}_list"></div></div>
 <div class="cclogtabs-tabbar" id="${uid}_tabbar"></div>
