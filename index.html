@@ -491,9 +491,12 @@
 
   .msg-controls{
     display:flex; align-items:center; gap:4px;
-    opacity:0; flex-shrink:0;
+    flex-shrink:0;
   }
-  .msg-row:hover .msg-controls{opacity:1;}
+  .row-select-box{
+    width:15px; height:15px; margin:0 2px 0 0; flex-shrink:0; cursor:pointer;
+    accent-color:var(--accent-strong);
+  }
   .move-stack{
     display:flex; flex-direction:column; gap:1px;
   }
@@ -513,23 +516,6 @@
   }
   .msg-controls button:hover{color:var(--accent-strong); border-color:var(--accent);}
   .msg-controls button.del-hover-danger:hover{color:var(--danger); border-color:var(--danger);}
-  .msg-controls .swatch-hex-row{
-    display:flex; align-items:center; gap:3px; flex-shrink:0;
-  }
-  .msg-controls .swatch-hex-input{
-    width:54px; height:24px; box-sizing:border-box;
-    font-family:monospace; font-size:10.5px;
-    background:var(--bg-panel-2); border:1px solid var(--border-soft);
-    color:var(--text); border-radius:6px; padding:0 4px; outline:none;
-  }
-  .msg-controls .swatch-hex-input:focus{border-color:var(--accent);}
-  .msg-controls .swatch{
-    width:14px; height:14px; border-radius:50%; border:1px solid rgba(255,255,255,.3);
-    flex-shrink:0;
-  }
-  .msg-controls .swatch.invalid{
-    background-image:repeating-linear-gradient(45deg, var(--danger), var(--danger) 2px, #222 2px, #222 4px);
-  }
 
   ::-webkit-scrollbar{width:9px; height:9px;}
   ::-webkit-scrollbar-thumb{background:#333; border-radius:6px;}
@@ -901,12 +887,11 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
   color:#888;
   font-size:var(--log-roll-fs);
 }
-.msg-controls{position:absolute;right:8px;top:8px;gap:3px;}
+.msg-controls{gap:3px;}
 .msg-controls button{
   width:22px;height:22px;border-radius:5px;
   background:#3a3b3b;border-color:#3e3f3f;color:#7a7a7a;font-size:11px;
 }
-.msg-row:hover .msg-controls{opacity:1;}
 
 .insert-slot{height:8px;}
 .insert-btn{width:18px;height:18px;background:#3a3b3b;border-color:#444;color:#7a7a7a;}
@@ -1024,6 +1009,11 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
         <p class="section-title">정리</p>
         <button class="btn btn-ghost" id="deleteBlankBtn" style="width:100%;">대사 빈 항목 삭제</button>
         <p class="section-hint">대사 내용이 비어있는(공백만 있는 경우 포함) 항목을 전부 지워요. 이미지만 있고 글자가 없는 항목은 그대로 둬요.</p>
+        <div class="btn-row" style="margin-top:8px;">
+          <button class="btn btn-ghost" id="bulkGroupBtn" style="flex:1;" disabled>선택한 대사 묶기</button>
+          <button class="btn btn-ghost" id="bulkDeleteBtn" style="flex:1;" disabled>선택한 대사 삭제</button>
+        </div>
+        <div class="find-status" id="bulkSelectStatus">각 줄 오른쪽의 체크박스로 여러 개를 골라요. "묶기"는 맨 위에서 처음 체크한 자리로 순서대로 모아주고, "삭제"는 지웁니다.</div>
       </div>
 
       <div class="section">
@@ -1128,6 +1118,11 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
           <div class="tv-tools-row">
             <button type="button" id="tvDeleteBlankBtn" class="mini-btn">대사 빈 항목 삭제</button>
           </div>
+          <div class="tv-tools-row">
+            <button type="button" id="tvBulkGroupBtn" class="mini-btn" disabled>선택한 대사 묶기</button>
+            <button type="button" id="tvBulkDeleteBtn" class="mini-btn" disabled>선택한 대사 삭제</button>
+          </div>
+          <div id="tvBulkSelectStatus" class="find-status">각 줄 오른쪽 체크박스로 여러 개를 골라요. "묶기"는 맨 위에서 처음 체크한 자리로 순서대로 모아줘요.</div>
         </div>
         <div id="tvLogScroll" class="tv-log-scroll">
           <div id="tvLogList"></div>
@@ -1684,6 +1679,37 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     return true;
   }
 
+  function groupSelectedEntries(arr, selectedIds){
+    // 체크된 항목들을 지우지 않고, 맨 위에서 처음 체크된 자리 바로 그 위치에 순서 그대로
+    // 모아 붙인다. 체크 안 된 항목들은 자기들끼리의 순서를 유지한 채 그 앞뒤로 밀려난다.
+    var selected = [];
+    var rest = [];
+    var anchorIdx = -1;
+    arr.forEach(function(e){
+      if (selectedIds[e.id]) {
+        if (anchorIdx === -1) anchorIdx = rest.length;
+        selected.push(e);
+      } else {
+        rest.push(e);
+      }
+    });
+    if (anchorIdx === -1) return arr;
+    return rest.slice(0, anchorIdx).concat(selected, rest.slice(anchorIdx));
+  }
+
+  var selectedIds = {};
+  var selectedCount = 0;
+
+  function updateBulkSelectUI(){
+    var btn = document.getElementById('bulkDeleteBtn');
+    var groupBtn = document.getElementById('bulkGroupBtn');
+    var status = document.getElementById('bulkSelectStatus');
+    if (!btn) return;
+    btn.disabled = selectedCount === 0;
+    if (groupBtn) groupBtn.disabled = selectedCount < 2;
+    status.textContent = selectedCount ? (selectedCount + '개 선택됨') : '선택한 대사를 묶거나 한번에 지울 수 있어요.';
+  }
+
   function mainRowHost(){
     return {
       isTabMuted: function(tab){
@@ -1693,13 +1719,21 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       tabOpacityValue: function(){ return state.tabOpacityValue || 72; },
       removeEntry: function(id){
         state.entries = state.entries.filter(function(x){ return x.id !== id; });
+        delete selectedIds[id];
         rebuildCharacters();
         renderLog();
         updateFindMatches(true);
+        updateBulkSelectUI();
       },
       onEdit: function(){ rebuildCharacters(); },
       moveBy: function(id, dir){
         if (moveArrayEntryBy(state.entries, id, dir)) renderLog();
+      },
+      isSelected: function(id){ return !!selectedIds[id]; },
+      toggleSelect: function(id){
+        if (selectedIds[id]) { delete selectedIds[id]; selectedCount--; }
+        else { selectedIds[id] = true; selectedCount++; }
+        updateBulkSelectUI();
       }
     };
   }
@@ -1790,6 +1824,14 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     var ctrl = document.createElement('div');
     ctrl.className = 'msg-controls';
 
+    var selectBox = document.createElement('input');
+    selectBox.type = 'checkbox';
+    selectBox.className = 'row-select-box';
+    selectBox.title = '선택해서 한번에 삭제';
+    selectBox.checked = !!(host.isSelected && host.isSelected(e.id));
+    selectBox.onchange = function(){ if (host.toggleSelect) host.toggleSelect(e.id); };
+    ctrl.appendChild(selectBox);
+
     var moveStack = document.createElement('div');
     moveStack.className = 'move-stack';
     var moveUpBtn = document.createElement('button');
@@ -1807,29 +1849,6 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     moveStack.appendChild(moveUpBtn);
     moveStack.appendChild(moveDownBtn);
     ctrl.appendChild(moveStack);
-
-    var swatchRow = document.createElement('div');
-    swatchRow.className = 'swatch-hex-row';
-    var swatchDot = document.createElement('span');
-    swatchDot.className = 'swatch';
-    swatchDot.style.background = toHex6(e.color);
-    var colorInput = document.createElement('input');
-    colorInput.type = 'text';
-    colorInput.className = 'swatch-hex-input';
-    colorInput.maxLength = 7;
-    colorInput.value = toHex6(e.color);
-    colorInput.title = '이 대사만 색상 변경 (#rrggbb)';
-    colorInput.oninput = function(){
-      var norm = normalizeHex(colorInput.value);
-      if (!norm) { swatchDot.classList.add('invalid'); return; }
-      swatchDot.classList.remove('invalid');
-      swatchDot.style.background = norm;
-      e.color = norm;
-      if (e.name) row.querySelector('.msg-name').style.color = norm;
-    };
-    swatchRow.appendChild(swatchDot);
-    swatchRow.appendChild(colorInput);
-    ctrl.appendChild(swatchRow);
 
     var delBtn = document.createElement('button');
     delBtn.className = 'del-hover-danger';
@@ -2190,12 +2209,15 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
   document.getElementById('resetBtn').onclick = function(){
     if (!confirm('전부 초기화할까요? 되돌릴 수 없어요.')) return;
     state = { entries:[], characters:{}, tabs:{}, tabOpacity:{}, tabOpacityValue: state.tabOpacityValue || 72, fileNames:[], orderRef:null, orderRefName:'', nameFontSize: state.nameFontSize, bodyFontSize: state.bodyFontSize, rollFontSize: state.rollFontSize, bgColor: state.bgColor, textColor: state.textColor };
+    selectedIds = {};
+    selectedCount = 0;
     document.getElementById('fileChips').innerHTML = '';
     document.getElementById('tabChips').innerHTML = '';
     document.getElementById('tabSection').style.display='none';
     if (orderRefInput) orderRefInput.value = '';
     renderOrderRefStatus();
     renderLog();
+    updateBulkSelectUI();
   };
 
   document.getElementById('deleteBlankBtn').onclick = function(){
@@ -2212,6 +2234,28 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     renderTabChips();
     renderLog();
     updateFindMatches(true);
+  };
+
+  document.getElementById('bulkDeleteBtn').onclick = function(){
+    if (!selectedCount) return;
+    if (!confirm(selectedCount + '개 항목을 지울까요? 되돌릴 수 없어요.')) return;
+    state.entries = state.entries.filter(function(e){ return !selectedIds[e.id]; });
+    selectedIds = {};
+    selectedCount = 0;
+    rebuildTabs();
+    rebuildCharacters();
+    renderTabChips();
+    renderLog();
+    updateFindMatches(true);
+    updateBulkSelectUI();
+  };
+
+  document.getElementById('bulkGroupBtn').onclick = function(){
+    if (selectedCount < 2) return;
+    state.entries = groupSelectedEntries(state.entries, selectedIds);
+    renderLog();
+    updateFindMatches(true);
+    updateBulkSelectUI();
   };
 
   function escapeHtml(s){
@@ -2377,17 +2421,36 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
     return tvState.logs.filter(function(l){ return l.id === tvState.activeId; })[0] || null;
   }
 
+  function tvUpdateBulkSelectUI(){
+    var log = tvActiveLog();
+    var btn = document.getElementById('tvBulkDeleteBtn');
+    var groupBtn = document.getElementById('tvBulkGroupBtn');
+    var status = document.getElementById('tvBulkSelectStatus');
+    if (!btn || !log) return;
+    btn.disabled = !log.selectedCount;
+    if (groupBtn) groupBtn.disabled = !log.selectedCount || log.selectedCount < 2;
+    status.textContent = log.selectedCount ? (log.selectedCount + '개 선택됨') : '선택한 대사를 묶거나 한번에 지울 수 있어요.';
+  }
+
   function tvHostFor(log){
     return {
       isTabMuted: function(){ return false; },
       tabOpacityValue: function(){ return 72; },
       removeEntry: function(id){
         log.entries = log.entries.filter(function(x){ return x.id !== id; });
+        delete log.selectedIds[id];
         tvRenderList();
+        tvUpdateBulkSelectUI();
       },
       onEdit: function(){},
       moveBy: function(id, dir){
         if (moveArrayEntryBy(log.entries, id, dir)) tvRenderList();
+      },
+      isSelected: function(id){ return !!log.selectedIds[id]; },
+      toggleSelect: function(id){
+        if (log.selectedIds[id]) { delete log.selectedIds[id]; log.selectedCount--; }
+        else { log.selectedIds[id] = true; log.selectedCount++; }
+        tvUpdateBulkSelectUI();
       }
     };
   }
@@ -2494,6 +2557,7 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
     });
     tvRenderOrderRefStatus();
     tvUpdateFindMatches(true);
+    tvUpdateBulkSelectUI();
   }
 
   // ── 이 로그에 순서 정렬 기준 적용 ── (메인 편집기의 순서 정렬 기준과 같은 로직,
@@ -2617,6 +2681,27 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
       tvRenderList();
     };
   }
+  var tvBulkDeleteBtn = document.getElementById('tvBulkDeleteBtn');
+  if (tvBulkDeleteBtn) {
+    tvBulkDeleteBtn.onclick = function(){
+      var log = tvActiveLog();
+      if (!log || !log.selectedCount) return;
+      if (!confirm(log.selectedCount + '개 항목을 지울까요? 되돌릴 수 없어요.')) return;
+      log.entries = log.entries.filter(function(e){ return !log.selectedIds[e.id]; });
+      log.selectedIds = {};
+      log.selectedCount = 0;
+      tvRenderList();
+    };
+  }
+  var tvBulkGroupBtn = document.getElementById('tvBulkGroupBtn');
+  if (tvBulkGroupBtn) {
+    tvBulkGroupBtn.onclick = function(){
+      var log = tvActiveLog();
+      if (!log || log.selectedCount < 2) return;
+      log.entries = groupSelectedEntries(log.entries, log.selectedIds);
+      tvRenderList();
+    };
+  }
 
   function tvRender(){
     var empty = document.getElementById('tvEmpty');
@@ -2660,7 +2745,7 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
         var entries = parseLogHtml(reader.result);
         var id = 'tv' + (tvLogIdSeq++);
         var title = file.name.replace(/\.html?$/i, '');
-        tvState.logs.push({ id: id, title: title, entries: entries, orderRef: null, orderRefName: '' });
+        tvState.logs.push({ id: id, title: title, entries: entries, orderRef: null, orderRefName: '', selectedIds: {}, selectedCount: 0 });
         if (firstNewId === null) firstNewId = id;
         pending--;
         if (pending === 0) {
