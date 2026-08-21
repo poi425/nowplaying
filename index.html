@@ -647,6 +647,20 @@
 }
 .tv-tab-bar .tv-tab-x{color:#777; flex-shrink:0;}
 .tv-tab-bar .tv-tab-x:hover{color:#e05a4e;}
+.tv-tools{
+  flex-shrink:0;
+  display:flex; flex-direction:column; gap:6px;
+  padding:10px 12px;
+  margin-bottom:10px;
+  background:var(--bg-panel-2);
+  border:1px solid var(--border-soft);
+  border-radius:10px;
+}
+.tv-tools-row{
+  display:flex; align-items:center; gap:6px;
+}
+.tv-tools-row .text-input{flex:1; min-width:0;}
+#tvOrderRefStatus.on{color:#8fd39e;}
 #tvLogScroll{
   flex:1; min-height:0;
   overflow-y:auto;
@@ -1077,6 +1091,23 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       <div id="tvEmpty" class="tv-empty">로그 파일을 올리면 여기에 탭으로 나타나요. 파일을 여러 개 골라서 한 번에 추가할 수 있어요.</div>
       <div id="tvViewer" class="tv-viewer" style="display:none;">
         <div id="tvTabBar" class="tv-tab-bar"></div>
+        <div id="tvTools" class="tv-tools">
+          <div class="tv-tools-row">
+            <button type="button" id="tvOrderRefBtn" class="mini-btn">이 로그에 순서 정렬 기준 적용</button>
+            <input type="file" id="tvOrderRefInput" accept=".html,.htm" style="display:none;" />
+          </div>
+          <div id="tvOrderRefStatus" class="find-status"></div>
+          <div class="tv-tools-row">
+            <input type="text" id="tvFindInput" class="text-input" placeholder="찾을 내용" />
+            <button type="button" id="tvFindNextBtn" class="mini-btn">다음</button>
+          </div>
+          <div class="tv-tools-row">
+            <input type="text" id="tvReplaceInput" class="text-input" placeholder="바꿀 내용" />
+            <button type="button" id="tvReplaceOneBtn" class="mini-btn">현재</button>
+            <button type="button" id="tvReplaceAllBtn" class="mini-btn">전체</button>
+          </div>
+          <div id="tvFindStatus" class="find-status">이 로그를 불러오면 사용할 수 있어요.</div>
+        </div>
         <div id="tvLogScroll" class="tv-log-scroll">
           <div id="tvLogList"></div>
         </div>
@@ -1247,17 +1278,17 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     return (name || '').trim() + '\u0000' + text;
   }
 
-  function applyOrderReference(){
-    if (!state.orderRef || !state.orderRef.length) return;
+  function reorderEntriesByReference(entries, orderRef){
+    if (!orderRef || !orderRef.length) return entries;
     var queues = {};
-    state.entries.forEach(function(e){
+    entries.forEach(function(e){
       if (e.type !== 'msg') return;
       var key = orderMatchKey(e.name, normalizeMsgText(e.html));
       (queues[key] = queues[key] || []).push(e);
     });
     var used = {};
     var matchedSeq = [];
-    state.orderRef.forEach(function(r){
+    orderRef.forEach(function(r){
       var key = orderMatchKey(r.name, r.text);
       var q = queues[key];
       if (q && q.length) {
@@ -1273,7 +1304,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     var ordered = [];
     var matchedPtr = 0;
     var pendingUnmatched = [];
-    state.entries.forEach(function(e){
+    entries.forEach(function(e){
       if (used[e.id]) {
         ordered = ordered.concat(pendingUnmatched);
         pendingUnmatched = [];
@@ -1283,7 +1314,12 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       }
     });
     ordered = ordered.concat(pendingUnmatched);
-    state.entries = ordered;
+    return ordered;
+  }
+
+  function applyOrderReference(){
+    if (!state.orderRef || !state.orderRef.length) return;
+    state.entries = reorderEntriesByReference(state.entries, state.orderRef);
   }
 
   function isRollLine(text){
@@ -1800,6 +1836,11 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     if (e.type !== 'msg') return '';
     var d = document.createElement('div'); d.innerHTML = e.html || '';
     return (e.name || '') + '\n' + (d.textContent || '');
+  }
+  function escapeRegex(s){
+    // "전체 바꾸기"에서 찾을 내용을 정규식으로 쓰기 때문에, 정규식 특수문자가 그대로 들어오면
+    // RegExp 생성 시 문법 오류가 나거나 엉뚱하게 매칭된다. 문자 그대로 찾도록 이스케이프한다.
+    return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
   function updateFindMatches(resetCursor){
     var q = findInput.value;
@@ -2386,6 +2427,114 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
     log.entries.forEach(function(e){
       list.appendChild(msgRow(e, host));
     });
+    tvRenderOrderRefStatus();
+    tvUpdateFindMatches(true);
+  }
+
+  // ── 이 로그에 순서 정렬 기준 적용 ── (메인 편집기의 순서 정렬 기준과 같은 로직,
+  // 지금 열려있는 탭의 log.entries에만 적용한다.)
+  function tvRenderOrderRefStatus(){
+    var el = document.getElementById('tvOrderRefStatus');
+    var log = tvActiveLog();
+    if (!el || !log) { if (el) el.textContent = ''; return; }
+    if (log.orderRef && log.orderRef.length) {
+      el.textContent = log.orderRefName + ' · ' + log.orderRef.length + '줄 기준으로 정렬됨';
+      el.classList.add('on');
+    } else {
+      el.textContent = '';
+      el.classList.remove('on');
+    }
+  }
+
+  function tvHandleOrderRefFile(file){
+    var log = tvActiveLog();
+    if (!file || !log) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      var ref = parseOrderRefFile(reader.result);
+      if (!ref.length) {
+        alert('이 파일에서 순서 정보를 찾지 못했습니다. 코코포리아 "로그 다운로드"로 받은 공식 내보내기 파일인지 확인해주세요.');
+        return;
+      }
+      log.orderRef = ref;
+      log.orderRefName = file.name;
+      log.entries = reorderEntriesByReference(log.entries, log.orderRef);
+      tvRenderList();
+    };
+    reader.readAsText(file, 'UTF-8');
+  }
+
+  // ── 이 로그 안에서 찾기 · 바꾸기 ── (메인 편집기와 같은 로직, tvLogList/활성 로그에만 적용)
+  var tvFindInput = document.getElementById('tvFindInput');
+  var tvReplaceInput = document.getElementById('tvReplaceInput');
+  var tvFindStatus = document.getElementById('tvFindStatus');
+  var tvFindMatches = [];
+  var tvFindCursor = -1;
+
+  function tvUpdateFindMatches(resetCursor){
+    if (!tvFindInput) return;
+    var q = tvFindInput.value;
+    tvFindMatches = [];
+    document.querySelectorAll('#tvLogList .msg-row.search-hit').forEach(function(el){ el.classList.remove('search-hit'); });
+    var log = tvActiveLog();
+    var entries = log ? log.entries : [];
+    if (!q) { tvFindCursor = -1; tvFindStatus.textContent = entries.length ? '찾을 내용을 입력하세요.' : '이 로그를 불러오면 사용할 수 있어요.'; return; }
+    var needle = q.toLocaleLowerCase();
+    entries.forEach(function(e){ if (e.type === 'msg' && entrySearchText(e).toLocaleLowerCase().includes(needle)) tvFindMatches.push(e.id); });
+    if (resetCursor) tvFindCursor = -1;
+    tvFindStatus.textContent = tvFindMatches.length ? (tvFindMatches.length + '개 발견') : '일치하는 내용이 없어요.';
+  }
+  function tvFocusFindMatch(step){
+    tvUpdateFindMatches(false);
+    if (!tvFindMatches.length) return;
+    tvFindCursor = (tvFindCursor + step + tvFindMatches.length) % tvFindMatches.length;
+    var row = document.querySelector('#tvLogList .msg-row[data-entry-id="' + tvFindMatches[tvFindCursor] + '"]');
+    if (row) { row.classList.add('search-hit'); row.scrollIntoView({behavior:'smooth',block:'center'}); }
+    tvFindStatus.textContent = (tvFindCursor + 1) + ' / ' + tvFindMatches.length;
+  }
+  function tvReplaceCurrent(){
+    var find = tvFindInput.value; if (!find) return;
+    var log = tvActiveLog(); if (!log) return;
+    tvUpdateFindMatches(false); if (!tvFindMatches.length) return;
+    if (tvFindCursor < 0) tvFindCursor = 0;
+    var e = log.entries.find(function(x){ return x.id === tvFindMatches[tvFindCursor]; }); if (!e) return;
+    var replacement = tvReplaceInput.value, changed = 0;
+    var ni = (e.name || '').toLocaleLowerCase().indexOf(find.toLocaleLowerCase());
+    if (ni >= 0) { e.name = e.name.slice(0,ni) + replacement + e.name.slice(ni + find.length); changed++; }
+    else { var r = replaceInHtmlText(e.html, find, replacement, false); e.html = r.html; changed += r.changed; }
+    tvRenderList();
+    tvUpdateFindMatches(true);
+    tvFindStatus.textContent = changed ? '1건 변환했어요.' : '현재 항목에서 찾지 못했어요.';
+  }
+  function tvReplaceAllMatches(){
+    var find = tvFindInput.value; if (!find) return;
+    var log = tvActiveLog(); if (!log) return;
+    var replacement = tvReplaceInput.value, count = 0;
+    log.entries.forEach(function(e){
+      if (e.type !== 'msg') return;
+      var re = new RegExp(escapeRegex(find), 'gi');
+      var beforeName = e.name || ''; var nm = beforeName.match(re); if (nm) { e.name = beforeName.replace(re, replacement); count += nm.length; }
+      var r = replaceInHtmlText(e.html, find, replacement, true); e.html = r.html; count += r.changed;
+    });
+    tvRenderList();
+    tvUpdateFindMatches(true);
+    tvFindStatus.textContent = count ? (count + '건 변환했어요.') : '변환할 내용이 없어요.';
+  }
+  if (tvFindInput) {
+    tvFindInput.addEventListener('input', function(){ tvUpdateFindMatches(true); });
+    tvFindInput.addEventListener('keydown', function(e){ if (e.key === 'Enter') tvFocusFindMatch(1); });
+    document.getElementById('tvFindNextBtn').onclick = function(){ tvFocusFindMatch(1); };
+    document.getElementById('tvReplaceOneBtn').onclick = tvReplaceCurrent;
+    document.getElementById('tvReplaceAllBtn').onclick = tvReplaceAllMatches;
+  }
+  var tvOrderRefBtn = document.getElementById('tvOrderRefBtn');
+  var tvOrderRefInput = document.getElementById('tvOrderRefInput');
+  if (tvOrderRefBtn && tvOrderRefInput) {
+    tvOrderRefBtn.onclick = function(){ tvOrderRefInput.click(); };
+    tvOrderRefInput.onchange = function(){
+      if (tvOrderRefInput.files.length) tvHandleOrderRefFile(tvOrderRefInput.files[0]);
+      tvOrderRefInput.value = '';
+    };
   }
 
   function tvRender(){
@@ -2430,7 +2579,7 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
         var entries = parseLogHtml(reader.result);
         var id = 'tv' + (tvLogIdSeq++);
         var title = file.name.replace(/\.html?$/i, '');
-        tvState.logs.push({ id: id, title: title, entries: entries });
+        tvState.logs.push({ id: id, title: title, entries: entries, orderRef: null, orderRefName: '' });
         if (firstNewId === null) firstNewId = id;
         pending--;
         if (pending === 0) {
