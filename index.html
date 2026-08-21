@@ -1774,7 +1774,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       (e.isNarration ? ' is-narration' : '') +
       (isSystem ? ' is-system' : '') +
       (useMutedOpacity ? ' tab-muted' : '') +
-      ((!isMainTab && !e.name) ? ' has-tab-badge' : '');
+      (!isMainTab ? ' has-tab-badge' : '');
     if (useMutedOpacity) row.style.setProperty('--tab-muted-opacity', String(host.tabOpacityValue() / 100));
 
     var avatar = document.createElement('div');
@@ -2337,7 +2337,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       '</style></head><body><main class="page"><h1 class="page-title">' + safeTitle + '</h1><section class="cclog-card"><div class="cclog-list" id="cclog_list"></div></section></main>' +
       '<script>(function(){var data=' + json + ';var root=document.getElementById("cclog_list");' +
       'function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}' +
-      'root.innerHTML=data.map(function(e){if(e.type==="divider")return "<div class=\\"cclog-divider\\">"+esc(e.label)+"</div>";var cls="cclog-msg"+(e.narration?" is-narration":"")+(e.system?" is-system":"")+(e.muted?" tab-muted":"")+((!e.name&&!e.isMain)?" has-tab-badge":"");var av=e.portrait?"<img class=\\"cclog-avatar\\" src=\\""+esc(e.portrait)+"\\" alt=\\"\\">":"<div class=\\"cclog-avatar-ph\\"></div>";var nameRow=e.name?"<div class=\\"cclog-name-row\\"><span class=\\"cclog-name\\" style=\\"color:"+esc(e.color)+"\\">"+esc(e.name)+"</span>"+(!e.isMain?"<span class=\\"cclog-badge\\">"+esc(e.tab)+"</span>":"")+"</div>":"";var floatBadge=(!e.name&&!e.isMain)?"<span class=\\"cclog-badge cclog-badge-float\\">"+esc(e.tab)+"</span>":"";var tc=e.rollish?" cclog-roll"+(e.rollResult?" roll-"+e.rollResult:""):"";return "<div class=\\""+cls+"\\">"+av+"<div class=\\"cclog-body\\">"+nameRow+floatBadge+"<div class=\\"cclog-text"+tc+"\\">"+e.html+"</div></div></div>"}).join("");})();<\/script></body></html>';
+      'root.innerHTML=data.map(function(e){if(e.type==="divider")return "<div class=\\"cclog-divider\\">"+esc(e.label)+"</div>";var cls="cclog-msg"+(e.narration?" is-narration":"")+(e.system?" is-system":"")+(e.muted?" tab-muted":"")+(!e.isMain?" has-tab-badge":"");var av=e.portrait?"<img class=\\"cclog-avatar\\" src=\\""+esc(e.portrait)+"\\" alt=\\"\\">":"<div class=\\"cclog-avatar-ph\\"></div>";var nameRow=e.name?"<div class=\\"cclog-name-row\\"><span class=\\"cclog-name\\" style=\\"color:"+esc(e.color)+"\\">"+esc(e.name)+"</span>"+(!e.isMain?"<span class=\\"cclog-badge\\">"+esc(e.tab)+"</span>":"")+"</div>":"";var floatBadge=(!e.name&&!e.isMain)?"<span class=\\"cclog-badge cclog-badge-float\\">"+esc(e.tab)+"</span>":"";var tc=e.rollish?" cclog-roll"+(e.rollResult?" roll-"+e.rollResult:""):"";return "<div class=\\""+cls+"\\">"+av+"<div class=\\"cclog-body\\">"+nameRow+floatBadge+"<div class=\\"cclog-text"+tc+"\\">"+e.html+"</div></div></div>"}).join("");})();<\/script></body></html>';
   }
 
 
@@ -2379,7 +2379,7 @@ system:!!(e.name && e.name.trim().toLowerCase()==='system'),
 </style><div class="cclog-list" id="${uid}_list"></div><script>(function(){
 var data=${JSON.stringify(data).replace(/<\/script/gi,'<\\/script')};var root=document.getElementById('${uid}_list');
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
-root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cclog-divider">'+esc(e.label)+'</div>';var cls='cclog-msg'+(e.narration?' is-narration':'')+(e.system?' is-system':'')+(e.muted?' tab-muted':'')+((!e.name&&!e.isMain)?' has-tab-badge':'');var av=e.portrait?'<img class="cclog-avatar" src="'+esc(e.portrait)+'" alt="">':'<div class="cclog-avatar-ph"></div>';var nameRow=e.name?'<div class="cclog-name-row"><span class="cclog-name" style="color:'+esc(e.color)+'">'+esc(e.name)+'</span>'+(!e.isMain?'<span class="cclog-badge">'+esc(e.tab)+'</span>':'')+'</div>':'';var floatBadge=(!e.name&&!e.isMain)?'<span class="cclog-badge cclog-badge-float">'+esc(e.tab)+'</span>':'';var tc=e.rollish?' cclog-roll'+(e.rollResult?' roll-'+e.rollResult:''):'';return '<div class="'+cls+'">'+av+'<div class="cclog-body">'+nameRow+floatBadge+'<div class="cclog-text'+tc+'">'+e.html+'</div></div></div>'}).join('');
+root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cclog-divider">'+esc(e.label)+'</div>';var cls='cclog-msg'+(e.narration?' is-narration':'')+(e.system?' is-system':'')+(e.muted?' tab-muted':'')+(!e.isMain?' has-tab-badge':'');var av=e.portrait?'<img class="cclog-avatar" src="'+esc(e.portrait)+'" alt="">':'<div class="cclog-avatar-ph"></div>';var nameRow=e.name?'<div class="cclog-name-row"><span class="cclog-name" style="color:'+esc(e.color)+'">'+esc(e.name)+'</span>'+(!e.isMain?'<span class="cclog-badge">'+esc(e.tab)+'</span>':'')+'</div>':'';var floatBadge=(!e.name&&!e.isMain)?'<span class="cclog-badge cclog-badge-float">'+esc(e.tab)+'</span>':'';var tc=e.rollish?' cclog-roll'+(e.rollResult?' roll-'+e.rollResult:''):'';return '<div class="'+cls+'">'+av+'<div class="cclog-body">'+nameRow+floatBadge+'<div class="cclog-text'+tc+'">'+e.html+'</div></div></div>'}).join('');
 })();<\/script></div></div>`;
     return snippet;
   }
@@ -2851,7 +2851,7 @@ function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 function rowsHtml(records){
   return records.map(function(e){
     if(e.type==='divider') return '<div class="cclog-divider">'+esc(e.label)+'</div>';
-    var cls='cclog-msg'+(e.narration?' is-narration':'')+(e.system?' is-system':'')+((!e.name&&!e.isMain)?' has-tab-badge':'');
+    var cls='cclog-msg'+(e.narration?' is-narration':'')+(e.system?' is-system':'')+(!e.isMain?' has-tab-badge':'');
     var av=e.portrait?'<img class="cclog-avatar" src="'+esc(e.portrait)+'" alt="">':'<div class="cclog-avatar-ph"></div>';
     var nameRow=e.name?'<div class="cclog-name-row"><span class="cclog-name" style="color:'+esc(e.color)+'">'+esc(e.name)+'</span>'+(!e.isMain?'<span class="cclog-badge">'+esc(e.tab)+'</span>':'')+'</div>':'';
     var floatBadge=(!e.name&&!e.isMain)?'<span class="cclog-badge cclog-badge-float">'+esc(e.tab)+'</span>':'';
