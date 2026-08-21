@@ -90,6 +90,8 @@
   .tv-launch-btn{
     flex-shrink:0;
     width:56px;
+    height:57px;
+    box-sizing:border-box;
     padding:6px 4px;
     background:var(--bg-panel-2);
     border:1px solid var(--border-soft);
@@ -100,6 +102,11 @@
     line-height:1.4;
     text-align:center;
     cursor:pointer;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
   }
   .tv-launch-btn:hover{
     color:var(--accent-strong);
@@ -537,7 +544,10 @@
 
   .msg-row.is-system .avatar{display:none;}
   .msg-row.is-system .msg-name,
-  .msg-row.is-system .msg-text,
+  .msg-row.is-system .msg-text{
+    color:var(--text-faint);
+    font-weight:400;
+  }
 
   @media (max-width: 760px){
     #sidebar{position:fixed; z-index:20; height:100%; transform:translateX(-100%); transition:transform .2s;}
@@ -553,10 +563,8 @@
 #harvestCopyBtn.is-error{ border-color:#b0524a !important; color:#e0958e !important; }
 #harvestCopyIcon{ font-size:13px; line-height:1; }
 #harvestTooltip{
-  position:absolute;
-  top:calc(100% + 8px);
-  right:0;
-  z-index:20;
+  position:fixed;
+  z-index:2000;
   width:min(280px, calc(100vw - 40px));
   min-width:200px;
   font-size:12px;
@@ -945,7 +953,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
         <div id="harvestBadge">
           <button type="button" id="harvestCopyBtn" class="tv-launch-btn">
             <span id="harvestCopyIcon">⧉</span><br/>
-            <span id="harvestCopyLabel">수집<br/>코드</span>
+            <span id="harvestCopyLabel">수집코드</span>
           </button>
           <div id="harvestTooltip">코코포리아 세션 룸에서 <b>F12</b>를 눌러 개발자 도구를 열고, <b>콘솔(Console)</b> 란에 붙여넣어 실행하세요.</div>
         </div>
@@ -1248,20 +1256,33 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       (queues[key] = queues[key] || []).push(e);
     });
     var used = {};
-    var ordered = [];
+    var matchedSeq = [];
     state.orderRef.forEach(function(r){
       var key = orderMatchKey(r.name, r.text);
       var q = queues[key];
       if (q && q.length) {
         var e = q.shift();
         used[e.id] = true;
-        ordered.push(e);
+        matchedSeq.push(e);
       }
     });
-    // 기준 파일에 없는 줄(예: 기준 파일엔 없는 탭에서 수집한 항목)은 원래 순서 그대로 뒤에 붙인다
+    // 기준 파일과 못 맞춘 줄(예: "* * *" 같이 반복되는 짧은 줄이나 system 메시지는
+    // 기준 파일의 개수가 조금만 어긋나도 쉽게 남아돈다)은 전부 맨 뒤로 몰아버리면 안 된다.
+    // 원래 있던 자리 근처(바로 앞뒤의 매칭된 줄 사이)에 그대로 끼워 넣어, 실제 위치에서
+    // 멀리 떨어지지 않게 한다.
+    var ordered = [];
+    var matchedPtr = 0;
+    var pendingUnmatched = [];
     state.entries.forEach(function(e){
-      if (!used[e.id]) ordered.push(e);
+      if (used[e.id]) {
+        ordered = ordered.concat(pendingUnmatched);
+        pendingUnmatched = [];
+        ordered.push(matchedSeq[matchedPtr++]);
+      } else {
+        pendingUnmatched.push(e);
+      }
     });
+    ordered = ordered.concat(pendingUnmatched);
     state.entries = ordered;
   }
 
@@ -2134,7 +2155,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       '.cclog-msg.tab-muted{opacity:' + vars.opacity + '}.cclog-msg.tab-muted:hover{opacity:' + Math.min(1, vars.opacity + .18) + '}.cclog-text{font-size:' + vars.bodyFontSize + 'px;line-height:1.55;color:' + vars.text + ';word-break:break-word;white-space:pre-wrap}.cclog-roll{display:inline-block;margin-top:3px;padding:3px 8px;background:' + vars.rollBg + ';border:1px solid ' + vars.rollBorder + ';border-radius:4px;color:' + vars.rollText + ';font-size:' + vars.rollFontSize + 'px}' +
       '.roll-crit{color:' + vars.crit + ';border-color:' + vars.crit + ';font-weight:700}.roll-hard,.roll-success,.roll-fail{color:' + vars.rollText + ';border-color:' + vars.rollBorder + '}.roll-fumble{color:' + vars.fumble + ';border-color:' + vars.fumble + ';font-weight:700}' +
       '.is-narration{align-items:center}.is-narration .cclog-text{color:#8a8a8a}' +
-      '.is-system{justify-content:center;text-align:center}.is-system .cclog-avatar,.is-system .cclog-avatar-ph{display:none}.is-system .cclog-name,.is-system .cclog-text{font-size:' + Math.max(8, vars.bodyFontSize - 1) + 'px;color:#666;font-weight:400}' +
+      '.is-system .cclog-avatar,.is-system .cclog-avatar-ph{display:none}.is-system .cclog-name,.is-system .cclog-text{font-size:' + Math.max(8, vars.bodyFontSize - 1) + 'px;color:#666;font-weight:400}' +
       '.cclog-divider{display:flex;align-items:center;gap:10px;padding:14px 20px;color:#777;font-size:10px}.cclog-divider:before,.cclog-divider:after{content:"";height:1px;background:#3e3f3f;flex:1}' +
       '@media(max-width:540px){body{padding:0}.page{max-width:100%}.page-title{padding:16px 16px 10px;margin:0}.cclog-card{border-radius:0;border-left:0;border-right:0}.cclog-msg{padding:14px}}' +
       '</style></head><body><main class="page"><h1 class="page-title">' + safeTitle + '</h1><section class="cclog-card"><div class="cclog-list" id="cclog_list"></div></section></main>' +
@@ -2176,7 +2197,7 @@ system:!!(e.name && e.name.trim().toLowerCase()==='system'),
 #${uid} .cclog-body{flex:1;min-width:0}#${uid} .cclog-name-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:2px;width:100%}#${uid} .cclog-badge{display:inline-flex;align-items:center;max-width:110px;padding:1px 5px;border:1px solid #353c52;border-radius:4px;background:transparent;color:#6a6a7a;font-size:9px;line-height:1.35;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-left:auto}#${uid} .cclog-msg.tab-muted{opacity:${vars.opacity}}#${uid} .cclog-msg.tab-muted:hover{opacity:${Math.min(1, vars.opacity + .18)}}#${uid} .cclog-name{font-size:${vars.nameFontSize}px;font-weight:600}#${uid} .cclog-text{font-size:${vars.bodyFontSize}px;line-height:1.55;color:${vars.text};word-break:break-word;white-space:pre-wrap}#${uid} .cclog-roll{display:inline-block;margin-top:3px;padding:3px 8px;background:${vars.rollBg};border:1px solid ${vars.rollBorder};border-radius:4px;color:${vars.rollText};font-size:${vars.rollFontSize}px}
 #${uid} .roll-crit{color:${vars.crit};border-color:${vars.crit};font-weight:700}#${uid} .roll-hard,#${uid} .roll-success,#${uid} .roll-fail{color:${vars.rollText};border-color:${vars.rollBorder}}#${uid} .roll-fumble{color:${vars.fumble};border-color:${vars.fumble};font-weight:700}
 #${uid} .is-narration{align-items:center}#${uid} .is-narration .cclog-text{color:#8a8a8a}
-#${uid} .is-system{justify-content:center;text-align:center}#${uid} .is-system .cclog-avatar,#${uid} .is-system .cclog-avatar-ph{display:none}#${uid} .is-system .cclog-name,#${uid} .is-system .cclog-text{font-size:${Math.max(8, vars.bodyFontSize - 1)}px;color:#666;font-weight:400}
+#${uid} .is-system .cclog-avatar,#${uid} .is-system .cclog-avatar-ph{display:none}#${uid} .is-system .cclog-name,#${uid} .is-system .cclog-text{font-size:${Math.max(8, vars.bodyFontSize - 1)}px;color:#666;font-weight:400}
 #${uid} .cclog-divider{display:flex;align-items:center;gap:10px;padding:14px 20px;color:#777;font-size:10px}#${uid} .cclog-divider:before,#${uid} .cclog-divider:after{content:"";height:1px;background:#3e3f3f;flex:1}
 @media(max-width:540px){#${uid}{max-width:100%;border-radius:0}#${uid} .cclog-msg{padding:14px}}
 </style><div class="cclog-list" id="${uid}_list"></div><script>(function(){
@@ -2463,7 +2484,6 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
 #${uid} .roll-fumble{color:#dc2626;border-color:#dc2626;font-weight:700}
 #${uid} .is-narration{align-items:center}
 #${uid} .is-narration .cclog-text{color:#8a8a8a}
-#${uid} .is-system{justify-content:center;text-align:center}
 #${uid} .is-system .cclog-avatar,#${uid} .is-system .cclog-avatar-ph{display:none}
 #${uid} .is-system .cclog-name,#${uid} .is-system .cclog-text{font-size:10px;color:#666;font-weight:400}
 #${uid} .cclog-divider{display:flex;align-items:center;gap:10px;padding:14px 20px;color:#777;font-size:10px}
@@ -3249,8 +3269,22 @@ renderTabs(); renderList();
   var label = document.getElementById('harvestCopyLabel');
   var srcEl = document.getElementById('ccfoliaHarvestSource');
   if (!btn || !srcEl) return;
-  var defaultLabel = label.textContent;
+  var defaultLabelHtml = label.innerHTML;
   var resetTimer = null;
+
+  var badge = document.getElementById('harvestBadge');
+  var tooltip = document.getElementById('harvestTooltip');
+  if (badge && tooltip) {
+    var positionTooltip = function(){
+      var r = badge.getBoundingClientRect();
+      tooltip.style.top = (r.bottom + 8) + 'px';
+      var left = r.right - tooltip.offsetWidth;
+      if (left < 8) left = 8;
+      tooltip.style.left = left + 'px';
+    };
+    badge.addEventListener('mouseenter', positionTooltip);
+    btn.addEventListener('focus', positionTooltip);
+  }
 
   function fallbackCopy(text){
     var ta = document.createElement('textarea');
@@ -3268,12 +3302,12 @@ renderTabs(); renderList();
   }
 
   function showResult(ok){
-    label.textContent = ok ? '복사됨!' : '복사 실패 · 직접 선택해 주세요';
+    label.textContent = ok ? '복사됨!' : '복사 실패';
     btn.classList.toggle('is-error', !ok);
     btn.classList.toggle('is-done', ok);
     if (resetTimer) clearTimeout(resetTimer);
     resetTimer = setTimeout(function(){
-      label.textContent = defaultLabel;
+      label.innerHTML = defaultLabelHtml;
       btn.classList.remove('is-done', 'is-error');
     }, 1800);
   }
