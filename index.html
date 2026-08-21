@@ -1007,9 +1007,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
 
       <div class="section" id="cleanupSection">
         <p class="section-title">정리</p>
-        <button class="btn btn-ghost" id="deleteBlankBtn" style="width:100%;">대사 빈 항목 삭제</button>
-        <p class="section-hint">대사 내용이 비어있는(공백만 있는 경우 포함) 항목을 전부 지워요. 이미지만 있고 글자가 없는 항목은 그대로 둬요.</p>
-        <div class="btn-row" style="margin-top:8px;">
+        <div class="btn-row">
           <button class="btn btn-ghost" id="bulkGroupBtn" style="flex:1;" disabled>선택한 대사 묶기</button>
           <button class="btn btn-ghost" id="bulkDeleteBtn" style="flex:1;" disabled>선택한 대사 삭제</button>
         </div>
@@ -1115,9 +1113,6 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
             <button type="button" id="tvReplaceAllBtn" class="mini-btn">전체</button>
           </div>
           <div id="tvFindStatus" class="find-status">이 로그를 불러오면 사용할 수 있어요.</div>
-          <div class="tv-tools-row">
-            <button type="button" id="tvDeleteBlankBtn" class="mini-btn">대사 빈 항목 삭제</button>
-          </div>
           <div class="tv-tools-row">
             <button type="button" id="tvBulkGroupBtn" class="mini-btn" disabled>선택한 대사 묶기</button>
             <button type="button" id="tvBulkDeleteBtn" class="mini-btn" disabled>선택한 대사 삭제</button>
@@ -2225,22 +2220,6 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     updateBulkSelectUI();
   };
 
-  document.getElementById('deleteBlankBtn').onclick = function(){
-    var blankIds = {};
-    state.entries.forEach(function(e){
-      if (e.type === 'msg' && !e.avatarSrc && isBlankValue(entryPlainText(e))) blankIds[e.id] = true;
-    });
-    var count = Object.keys(blankIds).length;
-    if (!count) { alert('대사가 빈 항목이 없어요.'); return; }
-    if (!confirm('대사 내용이 비어있는 ' + count + '개 항목을 지울까요? 되돌릴 수 없어요.')) return;
-    state.entries = state.entries.filter(function(e){ return !blankIds[e.id]; });
-    rebuildTabs();
-    rebuildCharacters();
-    renderTabChips();
-    renderLog();
-    updateFindMatches(true);
-  };
-
   document.getElementById('bulkDeleteBtn').onclick = function(){
     if (!selectedCount) return;
     if (!confirm(selectedCount + '개 항목을 지울까요? 되돌릴 수 없어요.')) return;
@@ -2668,22 +2647,6 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
     tvOrderRefInput.onchange = function(){
       if (tvOrderRefInput.files.length) tvHandleOrderRefFile(tvOrderRefInput.files[0]);
       tvOrderRefInput.value = '';
-    };
-  }
-  var tvDeleteBlankBtn = document.getElementById('tvDeleteBlankBtn');
-  if (tvDeleteBlankBtn) {
-    tvDeleteBlankBtn.onclick = function(){
-      var log = tvActiveLog();
-      if (!log) return;
-      var blankIds = {};
-      log.entries.forEach(function(e){
-        if (e.type === 'msg' && !e.avatarSrc && isBlankValue(entryPlainText(e))) blankIds[e.id] = true;
-      });
-      var count = Object.keys(blankIds).length;
-      if (!count) { alert('대사가 빈 항목이 없어요.'); return; }
-      if (!confirm('대사 내용이 비어있는 ' + count + '개 항목을 지울까요? 되돌릴 수 없어요.')) return;
-      log.entries = log.entries.filter(function(e){ return !blankIds[e.id]; });
-      tvRenderList();
     };
   }
   var tvBulkDeleteBtn = document.getElementById('tvBulkDeleteBtn');
