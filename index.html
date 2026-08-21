@@ -1020,6 +1020,12 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
         <div class="find-status" id="findStatus">로그를 불러오면 사용할 수 있어요.</div>
       </div>
 
+      <div class="section" id="cleanupSection">
+        <p class="section-title">정리</p>
+        <button class="btn btn-ghost" id="deleteBlankBtn" style="width:100%;">대사 빈 항목 삭제</button>
+        <p class="section-hint">대사 내용이 비어있는(공백만 있는 경우 포함) 항목을 전부 지워요. 이미지만 있고 글자가 없는 항목은 그대로 둬요.</p>
+      </div>
+
       <div class="section">
         <p class="section-title">표시 설정</p>
         <div class="display-setting-row">
@@ -1119,6 +1125,9 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
             <button type="button" id="tvReplaceAllBtn" class="mini-btn">전체</button>
           </div>
           <div id="tvFindStatus" class="find-status">이 로그를 불러오면 사용할 수 있어요.</div>
+          <div class="tv-tools-row">
+            <button type="button" id="tvDeleteBlankBtn" class="mini-btn">대사 빈 항목 삭제</button>
+          </div>
         </div>
         <div id="tvLogScroll" class="tv-log-scroll">
           <div id="tvLogList"></div>
@@ -1161,6 +1170,13 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     return parseOfficialLog(doc);
   }
 
+  function trimKeepIdeographicSpace(s){
+    // 대사 앞뒤의 일반 공백류만 지우고 　(U+3000, 전각 공백)는 남긴다. 그냥 .trim()을
+    // 쓰면 　만 달랑 있는 대사가 빈 문자열로 사라져, 실제로 쓰는 표기인데도 파싱 단계에서
+    // 이미 지워진 채로 들어온다.
+    return String(s || '').replace(/^[ \t\r\n\f\v\u00A0\u2000-\u200A\u2028\u2029\u202F\u205F\uFEFF]+|[ \t\r\n\f\v\u00A0\u2000-\u200A\u2028\u2029\u202F\u205F\uFEFF]+$/g, '');
+  }
+
   function parseOfficialLog(doc){
     var ps = doc.body.querySelectorAll('p');
     var out = [];
@@ -1172,8 +1188,8 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       if (spans.length < 3) return;
       var tab = (spans[0].textContent || '').trim().replace(/^\[|\]$/g, '').trim();
       var name = (spans[1].textContent || '').trim();
-      var html = spans[2].innerHTML.trim();
-      var textOnly = (spans[2].textContent || '').trim();
+      var html = trimKeepIdeographicSpace(spans[2].innerHTML);
+      var textOnly = trimKeepIdeographicSpace(spans[2].textContent || '');
       if (!name && !textOnly) return;
       out.push({
         id: nextId(),
@@ -1218,8 +1234,8 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
         var clone = secondary.cloneNode(true);
         // 시각·[편집 완료] 표시는 캡션 span으로 붙어있다. 대사에서 떼어낸다.
         clone.querySelectorAll('.MuiTypography-caption, span[class*="caption"]').forEach(function(c){ c.parentNode.removeChild(c); });
-        html = clone.innerHTML.trim();
-        textOnly = clone.textContent.trim();
+        html = trimKeepIdeographicSpace(clone.innerHTML);
+        textOnly = trimKeepIdeographicSpace(clone.textContent);
       }
 
       // 이름도 대사도 이미지도 없는 줄([편집 완료]만 남은 빈 캡션 등)은 건너뛴다
@@ -1844,6 +1860,15 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
   var findMatches = [];
   var findCursor = -1;
 
+  function entryPlainText(e){
+    var d = document.createElement('div'); d.innerHTML = e.html || '';
+    return d.textContent || '';
+  }
+  function isBlankValue(s){
+    // 　(U+3000, 전각 공백)만 달랑 있는 대사창은 실제로 쓰는 표기라 빈 걸로 치면 안 된다.
+    // 나머지 공백류(스페이스·탭·줄바꿈 등)만 지우고 　는 남긴다 — 　가 남아있으면 빈 게 아니다.
+    return !String(s || '').replace(/[ \t\r\n\f\v\u00A0\u2000-\u200A\u2028\u2029\u202F\u205F\uFEFF]+/g, '').length;
+  }
   function entrySearchText(e){
     if (e.type !== 'msg') return '';
     var d = document.createElement('div'); d.innerHTML = e.html || '';
@@ -2171,6 +2196,22 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     if (orderRefInput) orderRefInput.value = '';
     renderOrderRefStatus();
     renderLog();
+  };
+
+  document.getElementById('deleteBlankBtn').onclick = function(){
+    var blankIds = {};
+    state.entries.forEach(function(e){
+      if (e.type === 'msg' && !e.avatarSrc && isBlankValue(entryPlainText(e))) blankIds[e.id] = true;
+    });
+    var count = Object.keys(blankIds).length;
+    if (!count) { alert('대사가 빈 항목이 없어요.'); return; }
+    if (!confirm('대사 내용이 비어있는 ' + count + '개 항목을 지울까요? 되돌릴 수 없어요.')) return;
+    state.entries = state.entries.filter(function(e){ return !blankIds[e.id]; });
+    rebuildTabs();
+    rebuildCharacters();
+    renderTabChips();
+    renderLog();
+    updateFindMatches(true);
   };
 
   function escapeHtml(s){
@@ -2558,6 +2599,22 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
     tvOrderRefInput.onchange = function(){
       if (tvOrderRefInput.files.length) tvHandleOrderRefFile(tvOrderRefInput.files[0]);
       tvOrderRefInput.value = '';
+    };
+  }
+  var tvDeleteBlankBtn = document.getElementById('tvDeleteBlankBtn');
+  if (tvDeleteBlankBtn) {
+    tvDeleteBlankBtn.onclick = function(){
+      var log = tvActiveLog();
+      if (!log) return;
+      var blankIds = {};
+      log.entries.forEach(function(e){
+        if (e.type === 'msg' && !e.avatarSrc && isBlankValue(entryPlainText(e))) blankIds[e.id] = true;
+      });
+      var count = Object.keys(blankIds).length;
+      if (!count) { alert('대사가 빈 항목이 없어요.'); return; }
+      if (!confirm('대사 내용이 비어있는 ' + count + '개 항목을 지울까요? 되돌릴 수 없어요.')) return;
+      log.entries = log.entries.filter(function(e){ return !blankIds[e.id]; });
+      tvRenderList();
     };
   }
 
