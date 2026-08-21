@@ -928,7 +928,8 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
 }
 .font-size-select:focus{border-color:#777;background-color:#303131;}
 .tab-badge{display:inline-flex;align-items:center;max-width:110px;padding:1px 5px;border:1px solid #353c52;border-radius:4px;background:transparent;color:#6a6a7a;font-size:9px;line-height:1.35;font-weight:400;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;margin-left:auto;}
-.tab-badge-float{position:absolute; top:1px; right:0; margin-left:0;}
+.tab-badge-float{position:absolute; top:0; right:0;}
+.msg-row.has-tab-badge .msg-text{padding-right:90px;}
 .find-replace-row{display:flex;gap:6px;margin-bottom:7px;align-items:center;}
 .find-replace-row .text-input{min-width:0;flex:1;padding:7px 9px;}
 .mini-btn{height:31px;padding:0 9px;border:1px solid #3e3f3f;border-radius:6px;background:#3a3b3b;color:#a0a0a0;font:10.5px var(--font-ui);cursor:pointer;white-space:nowrap;}
@@ -1772,7 +1773,8 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     row.className = 'msg-row' +
       (e.isNarration ? ' is-narration' : '') +
       (isSystem ? ' is-system' : '') +
-      (useMutedOpacity ? ' tab-muted' : '');
+      (useMutedOpacity ? ' tab-muted' : '') +
+      ((!isMainTab && !e.name) ? ' has-tab-badge' : '');
     if (useMutedOpacity) row.style.setProperty('--tab-muted-opacity', String(host.tabOpacityValue() / 100));
 
     var avatar = document.createElement('div');
@@ -1798,9 +1800,17 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       nameEl.oninput = function(){ e.name = nameEl.textContent.trim(); host.onEdit(); };
       meta.appendChild(nameEl);
     }
+    if (!isMainTab && !e.name) {
+      // 서술 줄의 탭 배지는 float로 띄워서, 대사 텍스트가 배지 자리를 피해 자연스럽게
+      // 줄바꿈되도록 한다(겹쳐서 안 보이는 문제 방지). meta보다 먼저 넣어야 float가 먹는다.
+      var floatBadge = document.createElement('span');
+      floatBadge.className = 'tab-badge tab-badge-float';
+      floatBadge.textContent = e.tab;
+      body.appendChild(floatBadge);
+    }
     // 이름이 있을 때만 배지를 이름 옆(meta 줄)에 같이 넣는다. 이름이 없는 서술 줄까지 여기 넣으면
     // meta가 배지 하나만으로도 한 줄 높이를 차지해버려서, 서술 줄의 "이미지와 세로 가운데 정렬"이
-    // 배지 줄 높이만큼 위로 밀려 텍스트와 어긋나 보인다. 서술 줄의 배지는 아래에서 따로 띄운다.
+    // 배지 줄 높이만큼 위로 밀려 텍스트와 어긋나 보인다. 서술 줄의 배지는 위에서 따로 띄웠다.
     if (!isMainTab && e.name) {
       var badgeEl = document.createElement('span');
       badgeEl.className = 'tab-badge';
@@ -1822,16 +1832,6 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       host.onEdit();
     };
     body.appendChild(textEl);
-
-    if (!isMainTab && !e.name) {
-      // 서술 줄의 탭 배지는 body 흐름 밖에서 오른쪽 위에 따로 띄운다 — 세로 가운데 정렬에
-      // 영향을 주지 않으면서도 어느 탭인지는 계속 보이게. msg-controls와 안 겹치도록
-      // body(텍스트 영역) 기준으로 띄운다.
-      var floatBadge = document.createElement('span');
-      floatBadge.className = 'tab-badge tab-badge-float';
-      floatBadge.textContent = e.tab;
-      body.appendChild(floatBadge);
-    }
 
     var imgRow = document.createElement('div');
     imgRow.className = 'msg-img-row';
@@ -2327,7 +2327,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       '.cclog-card{background:' + vars.bg + ';border:1px solid #3e3f3f;border-radius:16px;overflow:hidden}' +
       '.cclog-list{padding:12px 0}.cclog-msg{display:flex;gap:14px;align-items:flex-start;padding:14px 20px;box-shadow:0 1px 0 #3a3b3b;position:relative}.cclog-msg:last-child{box-shadow:none}' +
       '.cclog-avatar{width:34px;height:34px;object-fit:cover;object-position:top center;border-radius:50%;flex-shrink:0;margin-top:2px}.cclog-avatar-ph{width:34px;height:34px;flex-shrink:0;visibility:hidden}' +
-      '.cclog-body{flex:1;min-width:0;position:relative}.cclog-name-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:2px;width:100%}.cclog-name{font-size:' + vars.nameFontSize + 'px;font-weight:600}.cclog-badge{display:inline-flex;align-items:center;max-width:110px;padding:1px 5px;border:1px solid #353c52;border-radius:4px;background:transparent;color:#6a6a7a;font-size:9px;line-height:1.35;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-left:auto}.cclog-badge-float{position:absolute;top:1px;right:0;margin-left:0}' +
+      '.cclog-body{flex:1;min-width:0;position:relative}.cclog-name-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:2px;width:100%}.cclog-name{font-size:' + vars.nameFontSize + 'px;font-weight:600}.cclog-badge{display:inline-flex;align-items:center;max-width:110px;padding:1px 5px;border:1px solid #353c52;border-radius:4px;background:transparent;color:#6a6a7a;font-size:9px;line-height:1.35;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-left:auto}.cclog-badge-float{position:absolute;top:0;right:0}.cclog-msg.has-tab-badge .cclog-text{padding-right:90px}' +
       '.cclog-msg.tab-muted{opacity:' + vars.opacity + '}.cclog-text{font-size:' + vars.bodyFontSize + 'px;line-height:1.55;color:' + vars.text + ';word-break:break-word;white-space:pre-wrap}.cclog-roll{display:inline-block;margin-top:3px;padding:3px 8px;background:' + vars.rollBg + ';border:1px solid ' + vars.rollBorder + ';border-radius:4px;color:' + vars.rollText + ';font-size:' + vars.rollFontSize + 'px}' +
       '.roll-crit{color:' + vars.crit + ';border-color:' + vars.crit + ';font-weight:700}.roll-hard,.roll-success,.roll-fail{color:' + vars.rollText + ';border-color:' + vars.rollBorder + '}.roll-fumble{color:' + vars.fumble + ';border-color:' + vars.fumble + ';font-weight:700}' +
       '.is-narration{align-items:center}' +
@@ -2337,7 +2337,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       '</style></head><body><main class="page"><h1 class="page-title">' + safeTitle + '</h1><section class="cclog-card"><div class="cclog-list" id="cclog_list"></div></section></main>' +
       '<script>(function(){var data=' + json + ';var root=document.getElementById("cclog_list");' +
       'function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}' +
-      'root.innerHTML=data.map(function(e){if(e.type==="divider")return "<div class=\\"cclog-divider\\">"+esc(e.label)+"</div>";var cls="cclog-msg"+(e.narration?" is-narration":"")+(e.system?" is-system":"")+(e.muted?" tab-muted":"");var av=e.portrait?"<img class=\\"cclog-avatar\\" src=\\""+esc(e.portrait)+"\\" alt=\\"\\">":"<div class=\\"cclog-avatar-ph\\"></div>";var nameRow=e.name?"<div class=\\"cclog-name-row\\"><span class=\\"cclog-name\\" style=\\"color:"+esc(e.color)+"\\">"+esc(e.name)+"</span>"+(!e.isMain?"<span class=\\"cclog-badge\\">"+esc(e.tab)+"</span>":"")+"</div>":"";var floatBadge=(!e.name&&!e.isMain)?"<span class=\\"cclog-badge cclog-badge-float\\">"+esc(e.tab)+"</span>":"";var tc=e.rollish?" cclog-roll"+(e.rollResult?" roll-"+e.rollResult:""):"";return "<div class=\\""+cls+"\\">"+av+"<div class=\\"cclog-body\\">"+nameRow+floatBadge+"<div class=\\"cclog-text"+tc+"\\">"+e.html+"</div></div></div>"}).join("");})();<\/script></body></html>';
+      'root.innerHTML=data.map(function(e){if(e.type==="divider")return "<div class=\\"cclog-divider\\">"+esc(e.label)+"</div>";var cls="cclog-msg"+(e.narration?" is-narration":"")+(e.system?" is-system":"")+(e.muted?" tab-muted":"")+((!e.name&&!e.isMain)?" has-tab-badge":"");var av=e.portrait?"<img class=\\"cclog-avatar\\" src=\\""+esc(e.portrait)+"\\" alt=\\"\\">":"<div class=\\"cclog-avatar-ph\\"></div>";var nameRow=e.name?"<div class=\\"cclog-name-row\\"><span class=\\"cclog-name\\" style=\\"color:"+esc(e.color)+"\\">"+esc(e.name)+"</span>"+(!e.isMain?"<span class=\\"cclog-badge\\">"+esc(e.tab)+"</span>":"")+"</div>":"";var floatBadge=(!e.name&&!e.isMain)?"<span class=\\"cclog-badge cclog-badge-float\\">"+esc(e.tab)+"</span>":"";var tc=e.rollish?" cclog-roll"+(e.rollResult?" roll-"+e.rollResult:""):"";return "<div class=\\""+cls+"\\">"+av+"<div class=\\"cclog-body\\">"+nameRow+floatBadge+"<div class=\\"cclog-text"+tc+"\\">"+e.html+"</div></div></div>"}).join("");})();<\/script></body></html>';
   }
 
 
@@ -2370,7 +2370,7 @@ system:!!(e.name && e.name.trim().toLowerCase()==='system'),
 #${uid},#${uid} *{box-sizing:border-box}#${uid}{max-width:520px;margin:0 auto;background:${vars.bg};border:1px solid #3e3f3f;border-radius:16px;overflow:hidden;font-family:${vars.font};color:${vars.text}}
 #${uid} .cclog-list{padding:12px 0}#${uid} .cclog-msg{display:flex;gap:14px;align-items:flex-start;padding:14px 20px;box-shadow:0 1px 0 #3a3b3b;position:relative}#${uid} .cclog-msg:last-child{box-shadow:none}
 #${uid} .cclog-avatar{width:34px;height:34px;object-fit:cover;object-position:top center;border-radius:50%;flex-shrink:0;margin-top:2px}#${uid} .cclog-avatar-ph{width:34px;height:34px;flex-shrink:0;visibility:hidden}
-#${uid} .cclog-body{flex:1;min-width:0;position:relative}#${uid} .cclog-name-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:2px;width:100%}#${uid} .cclog-badge{display:inline-flex;align-items:center;max-width:110px;padding:1px 5px;border:1px solid #353c52;border-radius:4px;background:transparent;color:#6a6a7a;font-size:9px;line-height:1.35;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-left:auto}#${uid} .cclog-badge-float{position:absolute;top:1px;right:0;margin-left:0}#${uid} .cclog-msg.tab-muted{opacity:${vars.opacity}}#${uid} .cclog-name{font-size:${vars.nameFontSize}px;font-weight:600}#${uid} .cclog-text{font-size:${vars.bodyFontSize}px;line-height:1.55;color:${vars.text};word-break:break-word;white-space:pre-wrap}#${uid} .cclog-roll{display:inline-block;margin-top:3px;padding:3px 8px;background:${vars.rollBg};border:1px solid ${vars.rollBorder};border-radius:4px;color:${vars.rollText};font-size:${vars.rollFontSize}px}
+#${uid} .cclog-body{flex:1;min-width:0;position:relative}#${uid} .cclog-name-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:2px;width:100%}#${uid} .cclog-badge{display:inline-flex;align-items:center;max-width:110px;padding:1px 5px;border:1px solid #353c52;border-radius:4px;background:transparent;color:#6a6a7a;font-size:9px;line-height:1.35;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-left:auto}#${uid} .cclog-badge-float{position:absolute;top:0;right:0}#${uid} .cclog-msg.has-tab-badge .cclog-text{padding-right:90px}#${uid} .cclog-msg.tab-muted{opacity:${vars.opacity}}#${uid} .cclog-name{font-size:${vars.nameFontSize}px;font-weight:600}#${uid} .cclog-text{font-size:${vars.bodyFontSize}px;line-height:1.55;color:${vars.text};word-break:break-word;white-space:pre-wrap}#${uid} .cclog-roll{display:inline-block;margin-top:3px;padding:3px 8px;background:${vars.rollBg};border:1px solid ${vars.rollBorder};border-radius:4px;color:${vars.rollText};font-size:${vars.rollFontSize}px}
 #${uid} .roll-crit{color:${vars.crit};border-color:${vars.crit};font-weight:700}#${uid} .roll-hard,#${uid} .roll-success,#${uid} .roll-fail{color:${vars.rollText};border-color:${vars.rollBorder}}#${uid} .roll-fumble{color:${vars.fumble};border-color:${vars.fumble};font-weight:700}
 #${uid} .is-narration{align-items:center}
 #${uid} .is-system .cclog-avatar,#${uid} .is-system .cclog-avatar-ph{display:none}#${uid} .is-system .cclog-name,#${uid} .is-system .cclog-text{font-size:${Math.max(8, vars.bodyFontSize - 1)}px;color:#666;font-weight:400}
@@ -2379,7 +2379,7 @@ system:!!(e.name && e.name.trim().toLowerCase()==='system'),
 </style><div class="cclog-list" id="${uid}_list"></div><script>(function(){
 var data=${JSON.stringify(data).replace(/<\/script/gi,'<\\/script')};var root=document.getElementById('${uid}_list');
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
-root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cclog-divider">'+esc(e.label)+'</div>';var cls='cclog-msg'+(e.narration?' is-narration':'')+(e.system?' is-system':'')+(e.muted?' tab-muted':'');var av=e.portrait?'<img class="cclog-avatar" src="'+esc(e.portrait)+'" alt="">':'<div class="cclog-avatar-ph"></div>';var nameRow=e.name?'<div class="cclog-name-row"><span class="cclog-name" style="color:'+esc(e.color)+'">'+esc(e.name)+'</span>'+(!e.isMain?'<span class="cclog-badge">'+esc(e.tab)+'</span>':'')+'</div>':'';var floatBadge=(!e.name&&!e.isMain)?'<span class="cclog-badge cclog-badge-float">'+esc(e.tab)+'</span>':'';var tc=e.rollish?' cclog-roll'+(e.rollResult?' roll-'+e.rollResult:''):'';return '<div class="'+cls+'">'+av+'<div class="cclog-body">'+nameRow+floatBadge+'<div class="cclog-text'+tc+'">'+e.html+'</div></div></div>'}).join('');
+root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cclog-divider">'+esc(e.label)+'</div>';var cls='cclog-msg'+(e.narration?' is-narration':'')+(e.system?' is-system':'')+(e.muted?' tab-muted':'')+((!e.name&&!e.isMain)?' has-tab-badge':'');var av=e.portrait?'<img class="cclog-avatar" src="'+esc(e.portrait)+'" alt="">':'<div class="cclog-avatar-ph"></div>';var nameRow=e.name?'<div class="cclog-name-row"><span class="cclog-name" style="color:'+esc(e.color)+'">'+esc(e.name)+'</span>'+(!e.isMain?'<span class="cclog-badge">'+esc(e.tab)+'</span>':'')+'</div>':'';var floatBadge=(!e.name&&!e.isMain)?'<span class="cclog-badge cclog-badge-float">'+esc(e.tab)+'</span>':'';var tc=e.rollish?' cclog-roll'+(e.rollResult?' roll-'+e.rollResult:''):'';return '<div class="'+cls+'">'+av+'<div class="cclog-body">'+nameRow+floatBadge+'<div class="cclog-text'+tc+'">'+e.html+'</div></div></div>'}).join('');
 })();<\/script></div></div>`;
     return snippet;
   }
@@ -2393,9 +2393,19 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
     URL.revokeObjectURL(url);
   }
 
+  function safeFilename(s){
+    // 파일명에 한글·일본어 등 비ASCII 문자나 특수문자가 섞여 있으면 환경에 따라
+    // 다운로드 자체가 실패하는 경우가 있어서, 파일명은 영문/숫자/공백 정도로만
+    // 안전하게 만든다. 영문·숫자가 하나도 안 남으면(밑줄만 남는 경우 포함) 기본 이름을 쓴다.
+    var ascii = String(s || '').replace(/[^\x00-\x7F]/g, '').trim();
+    ascii = ascii.replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, '_');
+    if (!/[a-zA-Z0-9]/.test(ascii)) return 'ccfolia_log';
+    return ascii;
+  }
+
   document.getElementById('tistoryExportBtn').onclick = function(){
     var title = document.getElementById('titleInput').value.trim() || 'log';
-    downloadTextFile(buildTistorySnippet(), title.replace(/[\\/:*?"<>|]/g,'_') + '_tistory.html');
+    downloadTextFile(buildTistorySnippet(), safeFilename(title) + '_tistory.html');
   };
 
   document.getElementById('exportBtn').onclick = function(){
@@ -2405,7 +2415,7 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
     var a = document.createElement('a');
     var title = document.getElementById('titleInput').value.trim() || 'log';
     a.href = url;
-    a.download = title.replace(/[\\/:*?"<>|]/g,'_') + '.html';
+    a.download = safeFilename(title) + '.html';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -2799,6 +2809,10 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
 #${uid},#${uid} *{box-sizing:border-box}
 #${uid}{max-width:640px;margin:0 auto;font-family:"Pretendard",sans-serif;color:#c0c0c0;background:#303131;border:1px solid #3e3f3f;border-radius:16px;overflow:hidden}
 #${uid} .cclogtabs-scroll{height:520px;overflow-y:auto}
+#${uid} .cclogtabs-scroll::-webkit-scrollbar{width:8px;height:8px}
+#${uid} .cclogtabs-scroll::-webkit-scrollbar-thumb{background:#4a4b4b;border-radius:8px}
+#${uid} .cclogtabs-scroll::-webkit-scrollbar-track{background:transparent}
+#${uid} .cclogtabs-scroll{scrollbar-color:#4a4b4b transparent;scrollbar-width:thin}
 #${uid} .cclog-list{padding:12px 0}
 #${uid} .cclog-msg{display:flex;gap:14px;align-items:flex-start;padding:14px 20px;box-shadow:0 1px 0 #3a3b3b;position:relative}
 #${uid} .cclog-msg:last-child{box-shadow:none}
@@ -2808,7 +2822,8 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
 #${uid} .cclog-name-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:2px;width:100%}
 #${uid} .cclog-name{font-size:12px;font-weight:600;color:#e4e4e4}
 #${uid} .cclog-badge{display:inline-flex;align-items:center;max-width:110px;padding:1px 5px;border:1px solid #353c52;border-radius:4px;color:#6a6a7a;font-size:9px;line-height:1.35;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;margin-left:auto}
-#${uid} .cclog-badge-float{position:absolute;top:1px;right:0;margin-left:0}
+#${uid} .cclog-badge-float{position:absolute;top:0;right:0}
+#${uid} .cclog-msg.has-tab-badge .cclog-text{padding-right:90px}
 #${uid} .cclog-text{font-size:11px;line-height:1.55;color:#c0c0c0;word-break:break-word;white-space:pre-wrap}
 #${uid} .cclog-roll{display:inline-block;margin-top:3px;padding:3px 8px;background:#282929;border:1px solid #3e3f3f;border-radius:4px;color:#f2f2f2;font-size:10px}
 #${uid} .roll-crit{color:#22c55e;border-color:#22c55e;font-weight:700}
@@ -2836,7 +2851,7 @@ function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 function rowsHtml(records){
   return records.map(function(e){
     if(e.type==='divider') return '<div class="cclog-divider">'+esc(e.label)+'</div>';
-    var cls='cclog-msg'+(e.narration?' is-narration':'')+(e.system?' is-system':'');
+    var cls='cclog-msg'+(e.narration?' is-narration':'')+(e.system?' is-system':'')+((!e.name&&!e.isMain)?' has-tab-badge':'');
     var av=e.portrait?'<img class="cclog-avatar" src="'+esc(e.portrait)+'" alt="">':'<div class="cclog-avatar-ph"></div>';
     var nameRow=e.name?'<div class="cclog-name-row"><span class="cclog-name" style="color:'+esc(e.color)+'">'+esc(e.name)+'</span>'+(!e.isMain?'<span class="cclog-badge">'+esc(e.tab)+'</span>':'')+'</div>':'';
     var floatBadge=(!e.name&&!e.isMain)?'<span class="cclog-badge cclog-badge-float">'+esc(e.tab)+'</span>':'';
@@ -2863,7 +2878,7 @@ renderTabs(); renderList();
 
   document.getElementById('tvDownloadBtn').onclick = function(){
     var title = document.getElementById('tvTitleInput').value.trim() || '로그 모음';
-    downloadTextFile(tvBuildSnippet(), title.replace(/[\\/:*?"<>|]/g,'_') + '_tabs_tistory.html');
+    downloadTextFile(tvBuildSnippet(), safeFilename(title) + '_tabs_tistory.html');
   };
 
   renderLog();
