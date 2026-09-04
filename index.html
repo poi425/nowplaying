@@ -1773,6 +1773,20 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     };
   }
 
+  function stripColorRuleSpans(html){
+    // 대사를 직접 편집할 때 붙여넣기 등으로 색상 스타일이 섞여 들어올 수 있어서, 그런
+    // 인라인 색상만 제거하고 나머지 구조(줄바꿈 등)는 그대로 둔다. 대사 색은 항상
+    // 캐릭터 색상 설정을 따르게 하기 위함.
+    var d = document.createElement('div');
+    d.innerHTML = html || '';
+    var all = d.querySelectorAll('[style]');
+    all.forEach(function(node){
+      if (node.style && node.style.color) node.style.color = '';
+      if (node.getAttribute('style') === '') node.removeAttribute('style');
+    });
+    return d.innerHTML;
+  }
+
   function msgRow(e, host){
     host = host || mainRowHost();
     var row = document.createElement('div');
@@ -2311,13 +2325,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     var d = document.createElement('div');
     d.innerHTML = html || '';
     var plain = d.textContent || '';
-    if (!plain.replace(/[ \t\r\n\f\v\u00A0\u2000-\u200A\u2028\u2029\u202F\u205F\uFEFF]+/g, '').length) return true;
-    // 공백류(반각 스페이스 또는 nbsp) 정확히 1개 + "[편집완료]"만 있는 대사는 편집 완료
-    // 표시용 마커라 지운다. 공백이 2개 이상이면(예: "  [편집완료]") 이 규칙에 안 걸리고
-    // 그대로 보존한다.
-    var m = /^([ \u00A0]*)\[편집완료\]$/.exec(plain);
-    if (m && m[1].length === 1) return true;
-    return false;
+    return !plain.replace(/[ \t\r\n\f\v\u00A0\u2000-\u200A\u2028\u2029\u202F\u205F\uFEFF]+/g, '').length;
   }
 
   function buildExportHtml(){
