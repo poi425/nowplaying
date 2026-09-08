@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>로그 백업 편집기</title>
+<style>
+  :root{
+    --bg-app: #1c1c1c;
+    --bg-panel: #222222;
+    --bg-panel-2: #272727;
+    --border: #3a3a3a;
+    --border-soft: #333333;
+    --text: #f2f2f2;
+    --text-dim: #9a9a9a;
+    --text-faint: #6a6a6a;
+    --accent-strong: #7c8cff;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; min-height:100%;
+    background:var(--bg-app); color:var(--text);
+    font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic",-apple-system,BlinkMacSystemFont,sans-serif;
+  }
+  body{
+    display:flex; align-items:center; justify-content:center;
+    min-height:100vh; padding:24px;
+  }
+  .wrap{ width:100%; max-width:640px; }
+  .head{ text-align:center; margin-bottom:32px; }
+  .head h1{ font-size:20px; font-weight:700; margin:0 0 8px; letter-spacing:-0.01em; }
+  .head p{ font-size:13px; color:var(--text-dim); margin:0; line-height:1.6; }
+  .cards{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media (max-width:560px){ .cards{ grid-template-columns:1fr; } }
+  .card{
+    display:block; text-decoration:none; color:inherit;
+    background:var(--bg-panel); border:1px solid var(--border-soft); border-radius:16px;
+    padding:26px 22px; text-align:left;
+    transition:border-color .15s, transform .15s, background .15s;
+  }
+  .card:hover{ border-color:var(--accent-strong); background:var(--bg-panel-2); transform:translateY(-2px); }
+  .card:active{ transform:translateY(0); }
+  .badge{
+    display:inline-flex; align-items:center; font-size:10.5px; font-weight:600;
+    padding:3px 8px; border-radius:999px; letter-spacing:.02em; margin-bottom:14px;
+  }
+  .badge.pro{ background:rgba(124,140,255,.16); color:#a9b4ff; }
+  .badge.default{ background:rgba(255,255,255,.08); color:var(--text-dim); }
+  .card h2{ font-size:16px; font-weight:700; margin:0 0 8px; }
+  .card p{ font-size:12.5px; color:var(--text-dim); line-height:1.65; margin:0 0 16px; }
+  .card .go{
+    font-size:12px; font-weight:600; color:var(--text);
+    display:inline-flex; align-items:center; gap:4px;
+  }
+  .card .go .arrow{ transition:transform .15s; }
+  .card:hover .go .arrow{ transform:translateX(3px); }
+  .foot{ text-align:center; margin-top:28px; font-size:11px; color:var(--text-faint); line-height:1.7; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="head">
+      <h1>로그 백업 편집기</h1>
+      <p>코코포리아 세션 로그를 편집하고, 티스토리·HTML로 내보낼 수 있는 도구예요.<br/>사용 중인 코코포리아 플랜에 맞는 버전을 골라주세요.</p>
+    </div>
+    <div class="cards">
+      <a class="card" href="pro.html">
+        <span class="badge pro">PRO 유저용</span>
+        <h2>JSON 로그</h2>
+        <p>코코포리아 PRO 플랜에서 세션 룸이 직접 내려주는 JSON 로그 파일을 그대로 올려서 씁니다. 순서가 항상 정확하고, 이미지도 파일 안에 같이 담겨요.</p>
+        <span class="go">열기 <span class="arrow">→</span></span>
+      </a>
+      <a class="card" href="defualt.html">
+        <span class="badge default">기본 유저용</span>
+        <h2>HTML 로그</h2>
+        <p>JSON 내보내기가 없는 일반 플랜을 위한 버전이에요. 콘솔 수집 코드나 "로그 다운로드" 공식 HTML 파일로 불러올 수 있습니다.</p>
+        <span class="go">열기 <span class="arrow">→</span></span>
+      </a>
+    </div>
+    <div class="foot">뒤로가기를 누르면 이 화면으로 돌아와요.</div>
+  </div>
+</body>
+</html>
