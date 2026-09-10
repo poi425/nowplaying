@@ -342,6 +342,10 @@
     position:relative;
     display:flex; align-items:center; justify-content:center;
   }
+  .load-more-row{
+    display:flex; gap:8px; justify-content:center;
+    padding:18px 12px;
+  }
   .insert-btn{
     opacity:0;
     width:20px; height:20px; border-radius:50%;
@@ -1106,8 +1110,10 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     rollFontSize: 10,
     bgColor: null,
     textColor: null,
-    hideBlankDialogue: true
+    hideBlankDialogue: true,
+    renderLimit: 500
   };
+  var RENDER_BATCH_SIZE = 500;
   var idSeq = 1;
   function nextId(){ return 'e' + (idSeq++); }
 
@@ -1396,21 +1402,101 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       if (state.hideBlankDialogue && isDialogueBlankForExport(e.html)) return false;
       return true;
     });
-    document.getElementById('topHint').textContent = visible.length + '개 항목';
+
+    // 로그가 아주 크면(수만 줄) 전부 한 번에 DOM으로 만드는 것 자체가 브라우저를 죽인다
+    // (실제로 5.7만 줄짜리 로그에서 메모리가 몇 GB까지 치솟다가 탭이 꺼지는 걸 겪었다).
+    // 그래서 한 번에 renderLimit개까지만 그리고, 나머지는 "더 불러오기"로 필요할 때만 그린다.
+    var overLimit = visible.length > state.renderLimit;
+    var shown = overLimit ? visible.slice(0, state.renderLimit) : visible;
+    document.getElementById('topHint').textContent = overLimit
+      ? (shown.length + ' / ' + visible.length + '개 항목 (일부만 표시 중)')
+      : (visible.length + '개 항목');
+
+    // entries.indexOf(e)를 매 항목마다 부르면 로그가 클 때(수만 줄) 항목수의 제곱에 비례해
+    // 느려진다(예: 5.7만 줄이면 대략 30억 번 비교) — 미리 id→인덱스 맵을 한 번만 만들어 둔다.
+    var indexById = {};
+    state.entries.forEach(function(e, i){ indexById[e.id] = i; });
 
     listEl.innerHTML = '';
     listEl.appendChild(insertSlot(-1));
 
-    visible.forEach(function(e){
-      var realIndex = state.entries.indexOf(e);
+    var frag = document.createDocumentFragment();
+    shown.forEach(function(e){
+      var realIndex = indexById[e.id];
       if (e.type === 'divider') {
-        listEl.appendChild(dividerRow(e));
+        frag.appendChild(dividerRow(e));
       } else {
-        listEl.appendChild(msgRow(e));
+        frag.appendChild(msgRow(e));
       }
-      listEl.appendChild(insertSlot(realIndex));
+      frag.appendChild(insertSlot(realIndex));
     });
+    listEl.appendChild(frag);
+    // "더 불러오기"로 이어서 그릴 때, 처음부터 다시 다 그리지 않고 새로 늘어난 부분만
+    // 이어붙일 수 있도록 지금까지 그린 목록/개수를 기억해 둔다.
+    lastRenderedVisible = visible;
+    lastRenderedIndexById = indexById;
+
+    appendLoadMoreRow(visible, shown.length);
+
     if (findMatches.length && findCursor >= 0) { var hit = document.querySelector('.msg-row[data-entry-id="' + findMatches[findCursor] + '"]'); if (hit) hit.classList.add('search-hit'); }
+  }
+
+  var lastRenderedVisible = null;
+  var lastRenderedIndexById = null;
+
+  function appendLoadMoreRow(visible, shownCount){
+    var listEl = document.getElementById('logList');
+    var old = listEl.querySelector('.load-more-row');
+    if (old) old.remove();
+    if (shownCount >= visible.length) return;
+    var loadMoreWrap = document.createElement('div');
+    loadMoreWrap.className = 'load-more-row';
+    var loadMoreBtn = document.createElement('button');
+    loadMoreBtn.type = 'button';
+    loadMoreBtn.className = 'btn';
+    loadMoreBtn.textContent = '더 불러오기 (' + (visible.length - shownCount) + '개 남음)';
+    loadMoreBtn.onclick = function(){ growRenderLimit(state.renderLimit + RENDER_BATCH_SIZE); };
+    var loadAllBtn = document.createElement('button');
+    loadAllBtn.type = 'button';
+    loadAllBtn.className = 'btn btn-ghost';
+    loadAllBtn.textContent = '전부 불러오기';
+    loadAllBtn.title = '로그가 크면 느려지거나 멈출 수 있어요';
+    loadAllBtn.onclick = function(){
+      if (visible.length > 3000 && !confirm('한 번에 ' + visible.length + '개를 전부 불러오면 브라우저가 느려지거나 멈출 수 있어요. 그래도 계속할까요?')) return;
+      growRenderLimit(visible.length);
+    };
+    loadMoreWrap.appendChild(loadMoreBtn);
+    loadMoreWrap.appendChild(loadAllBtn);
+    listEl.appendChild(loadMoreWrap);
+  }
+
+  // "더 불러오기"/검색으로 범위를 늘릴 때는, 처음부터 다시 그리는 renderLog() 대신
+  // 이미 그려둔 뒤에 새로 늘어난 구간만 이어붙인다. 데이터 자체(state.entries)나 탭/필터
+  // 조건이 바뀌지 않았을 때만 안전하게 쓸 수 있어서, 업로드·편집·탭 전환 등에서는 계속
+  // renderLog()로 처음부터 다시 그린다.
+  function growRenderLimit(newLimit){
+    var listEl = document.getElementById('logList');
+    if (!lastRenderedVisible || !lastRenderedIndexById) { state.renderLimit = newLimit; renderLog(); return; }
+    var visible = lastRenderedVisible;
+    var prevShown = Math.min(state.renderLimit, visible.length);
+    state.renderLimit = newLimit;
+    var newShown = Math.min(newLimit, visible.length);
+    if (newShown <= prevShown) { appendLoadMoreRow(visible, prevShown); return; }
+    var delta = visible.slice(prevShown, newShown);
+    var frag = document.createDocumentFragment();
+    delta.forEach(function(e){
+      var realIndex = lastRenderedIndexById[e.id];
+      if (e.type === 'divider') frag.appendChild(dividerRow(e));
+      else frag.appendChild(msgRow(e));
+      frag.appendChild(insertSlot(realIndex));
+    });
+    var oldLoadMore = listEl.querySelector('.load-more-row');
+    if (oldLoadMore) oldLoadMore.remove();
+    listEl.appendChild(frag);
+    document.getElementById('topHint').textContent = newShown < visible.length
+      ? (newShown + ' / ' + visible.length + '개 항목 (일부만 표시 중)')
+      : (visible.length + '개 항목');
+    appendLoadMoreRow(visible, newShown);
   }
 
   function insertSlot(afterIndex){
@@ -1810,7 +1896,33 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     updateFindMatches(false);
     if (!findMatches.length) return;
     findCursor = (findCursor + step + findMatches.length) % findMatches.length;
-    var row = document.querySelector('.msg-row[data-entry-id="' + findMatches[findCursor] + '"]');
+    var targetId = findMatches[findCursor];
+    var row = document.querySelector('.msg-row[data-entry-id="' + targetId + '"]');
+    if (!row) {
+      // 찾은 항목이 아직 화면에 그려지지 않은 구간(더 불러오기 전)에 있을 수 있다 —
+      // 그 항목이 포함되도록 렌더 범위를 늘려서 다시 그린 다음 다시 찾는다. 다만 그 항목이
+      // 지금 그려진 범위에서 아주 멀면(로그가 아주 클 때), 한 번에 확 늘리는 것 자체가
+      // 방금 고친 "한 번에 너무 많이 그리면 느려지는" 문제를 재현해버린다 — 그런 경우는
+      // 조용히 늘리지 않고 사용자에게 먼저 물어본다.
+      var visible = state.entries.filter(function(e){
+        if (e.type === 'divider') return true;
+        if (state.tabs[e.tab] === false) return false;
+        if (state.hideBlankDialogue && isDialogueBlankForExport(e.html)) return false;
+        return true;
+      });
+      var pos = visible.findIndex(function(e){ return e.id === targetId; });
+      if (pos >= 0 && pos + 1 > state.renderLimit) {
+        var need = pos + 1 - state.renderLimit;
+        var MAX_JUMP = 3000; // 한 번에 이보다 많이 그리면 브라우저가 잠깐 버벅일 수 있어 상한을 둔다
+        if (need > MAX_JUMP) {
+          growRenderLimit(state.renderLimit + MAX_JUMP);
+          findStatus.textContent = '찾은 항목까지 아직 좀 남았어요 — "다음" 버튼을 다시 눌러서 계속 다가가주세요.';
+          return;
+        }
+        growRenderLimit(pos + 1 + RENDER_BATCH_SIZE);
+        row = document.querySelector('.msg-row[data-entry-id="' + targetId + '"]');
+      }
+    }
     if (row) { row.classList.add('search-hit'); row.scrollIntoView({behavior:'smooth',block:'center'}); }
     findStatus.textContent = (findCursor + 1) + ' / ' + findMatches.length;
   }
@@ -2018,6 +2130,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       // JSON은 이미 시간순(createdAt)으로 내려오지만, 파일을 여러 개 나눠 올렸을 때도
       // 전체가 실제 시간순으로 맞춰지도록 병합 후 다시 한 번 정렬한다.
       state.entries.sort(function(a,b){ return (a.createdAt||0) - (b.createdAt||0); });
+      state.renderLimit = RENDER_BATCH_SIZE;
       rebuildTabs();
       renderFileChips();
       renderTabChips();
