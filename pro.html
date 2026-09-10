@@ -2259,6 +2259,25 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     return !plain.replace(/[ \t\r\n\f\v\u00A0\u2000-\u200A\u2028\u2029\u202F\u205F\uFEFF]+/g, '').length;
   }
 
+  function buildImagePool(){
+    // 아바타 이미지는 종류가 몇 개(보통 수십 개) 안 되는데 대사마다 그 원본 데이터를 통째로
+    // 복사해 넣으면, 인기 캐릭터 아이콘 하나가 수천 개 대사에 쓰일 때 같은 긴 문자열이
+    // 수천 번 반복돼서 파일이 쓸데없이 커진다. 실제로 쓰이는 이미지마다 짧은 키를 한 번만
+    // 배정해 풀에 저장해두고, 각 대사는 그 키만 참조하도록 한다.
+    var pool = {};
+    var keyOf = {};
+    var seq = 0;
+    function keyFor(src){
+      if (!src) return '';
+      if (keyOf[src]) return keyOf[src];
+      var k = 'i' + (seq++);
+      keyOf[src] = k;
+      pool[k] = src;
+      return k;
+    }
+    return { pool: pool, keyFor: keyFor };
+  }
+
   function buildExportHtml(){
     var title = document.getElementById('titleInput').value.trim() || '세션 로그';
     var visible = state.entries.filter(function(e){
@@ -2267,6 +2286,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       if (state.hideBlankDialogue && isDialogueBlankForExport(e.html)) return false;
       return true;
     });
+    var imgPool = buildImagePool();
     var data = visible.map(function(e){
       if (e.type === 'divider') return { type:'divider', label:e.label || '' };
       var portrait = getEntryPortrait(e);
@@ -2274,13 +2294,14 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       var rollish = isRollLine(plain);
       return {
         type:'message', name:e.name || '', html:e.html || '', color:e.color || '',
-        portrait:portrait ? portrait.src : '', narration:!!e.isNarration,
+        portraitKey:imgPool.keyFor(portrait ? portrait.src : ''), narration:!!e.isNarration,
         system:!!(e.name && e.name.trim().toLowerCase()==='system'),
         rollish:rollish, rollResult:rollish ? classifyRollResult(plain) : '',
         tab:e.tab || '메인', isMain:/^(main|메인|メイン)$/i.test(String(e.tab || '').trim()),
         muted:!/^(main|메인|メイン)$/i.test(String(e.tab || '').trim()) && state.tabOpacity[e.tab] !== false
       };
     });
+    var imagePool = imgPool.pool;
     var vars = {
       font: '"Pretendard",sans-serif',
       nameFontSize: state.nameFontSize || 12,
@@ -2291,6 +2312,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     };
     var safeTitle = escapeHtml(title);
     var json = JSON.stringify(data, null, 2).replace(/<\/script/gi,'<\\/script');
+    var imagesJson = JSON.stringify(imagePool, null, 2).replace(/<\/script/gi,'<\\/script');
     return `<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -2419,6 +2441,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
   <script>
     (function(){
       var data = ${json};
+      var images = ${imagesJson};
       var root = document.getElementById('cclog_list');
       function esc(s){
         return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -2432,8 +2455,9 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
           + (e.muted ? ' tab-muted' : '')
           + (!e.isMain ? ' has-tab-badge' : '');
 
-        var av = e.portrait
-          ? '<img class="cclog-avatar" loading="lazy" decoding="async" src="' + esc(e.portrait) + '" alt="">'
+        var portraitSrc = e.portraitKey ? images[e.portraitKey] : '';
+        var av = portraitSrc
+          ? '<img class="cclog-avatar" loading="lazy" decoding="async" src="' + esc(portraitSrc) + '" alt="">'
           : '<div class="cclog-avatar-ph"></div>';
 
         var nameRow = e.name
@@ -2475,6 +2499,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       return true;
     });
     var uid = 'cclog_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+    var imgPool = buildImagePool();
     var data = visible.map(function(e){
       if (e.type === 'divider') return { type:'divider', label:e.label || '' };
       var portrait = getEntryPortrait(e);
@@ -2482,12 +2507,13 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       var rollish = isRollLine(plain);
       return {
         type:'message', name:e.name || '', html:e.html || '', color:e.color || '',
-        portrait:portrait ? portrait.src : '', narration:!!e.isNarration,
+        portraitKey:imgPool.keyFor(portrait ? portrait.src : ''), narration:!!e.isNarration,
 system:!!(e.name && e.name.trim().toLowerCase()==='system'),
         rollish:rollish, rollResult:rollish ? classifyRollResult(plain) : '',
         tab:e.tab || '메인', isMain:/^(main|메인|メイン)$/i.test(String(e.tab || '').trim()), muted:!/^(main|메인|メイン)$/i.test(String(e.tab || '').trim()) && state.tabOpacity[e.tab] !== false
       };
     });
+    var imagePool = imgPool.pool;
     var vars = {
       font: '"Pretendard",sans-serif',
       nameFontSize: state.nameFontSize || 12,
@@ -2508,9 +2534,9 @@ system:!!(e.name && e.name.trim().toLowerCase()==='system'),
 #${uid} .cclog-divider{display:flex;align-items:center;gap:10px;padding:14px 20px;color:#777;font-size:10px}#${uid} .cclog-divider:before,#${uid} .cclog-divider:after{content:"";height:1px;background:#3e3f3f;flex:1}
 @media(max-width:540px){#${uid}{max-width:100%}#${uid} .cclog-msg{padding:14px}}
 </style><div class="cclog-list" id="${uid}_list"></div><script>(function(){
-var data=${JSON.stringify(data).replace(/<\/script/gi,'<\\/script')};var root=document.getElementById('${uid}_list');
+var data=${JSON.stringify(data).replace(/<\/script/gi,'<\\/script')};var images=${JSON.stringify(imagePool).replace(/<\/script/gi,'<\\/script')};var root=document.getElementById('${uid}_list');
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
-root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cclog-divider">'+esc(e.label)+'</div>';var cls='cclog-msg'+(e.narration?' is-narration':'')+(e.system?' is-system':'')+(e.muted?' tab-muted':'')+(!e.isMain?' has-tab-badge':'');var av=e.portrait?'<img class="cclog-avatar" loading="lazy" decoding="async" src="'+esc(e.portrait)+'" alt="">':'<div class="cclog-avatar-ph"></div>';var nameRow=e.name?'<div class="cclog-name-row"><span class="cclog-name" style="color:'+esc(e.color)+'">'+esc(e.name)+'</span>'+(!e.isMain?'<span class="cclog-badge">'+esc(e.tab)+'</span>':'')+'</div>':'';var floatBadge=(!e.name&&!e.isMain)?'<span class="cclog-badge cclog-badge-float">'+esc(e.tab)+'</span>':'';var tc=e.rollish?' cclog-roll'+(e.rollResult?' roll-'+e.rollResult:''):'';return '<div class="'+cls+'">'+av+'<div class="cclog-body">'+nameRow+floatBadge+'<div class="cclog-text'+tc+'">'+e.html+'</div></div></div>'}).join('');
+root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cclog-divider">'+esc(e.label)+'</div>';var cls='cclog-msg'+(e.narration?' is-narration':'')+(e.system?' is-system':'')+(e.muted?' tab-muted':'')+(!e.isMain?' has-tab-badge':'');var portraitSrc=e.portraitKey?images[e.portraitKey]:'';var av=portraitSrc?'<img class="cclog-avatar" loading="lazy" decoding="async" src="'+esc(portraitSrc)+'" alt="">':'<div class="cclog-avatar-ph"></div>';var nameRow=e.name?'<div class="cclog-name-row"><span class="cclog-name" style="color:'+esc(e.color)+'">'+esc(e.name)+'</span>'+(!e.isMain?'<span class="cclog-badge">'+esc(e.tab)+'</span>':'')+'</div>':'';var floatBadge=(!e.name&&!e.isMain)?'<span class="cclog-badge cclog-badge-float">'+esc(e.tab)+'</span>':'';var tc=e.rollish?' cclog-roll'+(e.rollResult?' roll-'+e.rollResult:''):'';return '<div class="'+cls+'">'+av+'<div class="cclog-body">'+nameRow+floatBadge+'<div class="cclog-text'+tc+'">'+e.html+'</div></div></div>'}).join('');
 })();<\/script></div></div>`;
     return snippet;
   }
@@ -2991,13 +3017,13 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
   // ── 다운로드 스니펫 ──
   // 실시간 편집 화면(msgRow)과 달리, 내보내는 결과물은 이미지·글자 크기가 고정된 정적 HTML이다.
   // 탭 목록은 요청대로 상자 위가 아니라 상자 "안", 그것도 아래쪽에 붙인다.
-  function tvEntryToRecord(e){
+  function tvEntryToRecord(e, imgPool){
     if (e.type === 'divider') return { type:'divider', label:e.label || '' };
     var plain = e.html.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g,'');
     var rollish = isRollLine(plain);
     return {
       type:'message', name:e.name || '', html:e.html || '', color:e.color || '',
-      portrait: e.avatarSrc || '', narration:!!e.isNarration,
+      portraitKey: imgPool.keyFor(e.avatarSrc || ''), narration:!!e.isNarration,
       system:!!(e.name && e.name.trim().toLowerCase()==='system'),
       rollish:rollish, rollResult:rollish ? classifyRollResult(plain) : '',
       tab:e.tab || '메인', isMain:/^(main|메인|メイン)$/i.test(String(e.tab || '').trim())
@@ -3007,6 +3033,7 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
   function tvBuildSnippet(){
     var title = document.getElementById('tvTitleInput').value.trim() || '로그 모음';
     var uid = 'cclogtabs_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+    var imgPool = buildImagePool();
     var panels = tvState.logs.map(function(l){
       var tabs = l.tabs || {};
       var visibleEntries = l.entries.filter(function(e){
@@ -3015,9 +3042,11 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
         if (state.hideBlankDialogue && isDialogueBlankForExport(e.html)) return false;
         return true;
       });
-      return { title: l.title, records: visibleEntries.map(tvEntryToRecord) };
+      return { title: l.title, records: visibleEntries.map(function(e){ return tvEntryToRecord(e, imgPool); }) };
     });
+    var imagePool = imgPool.pool;
     var panelsJson = JSON.stringify(panels).replace(/<\/script/gi, '<\\/script');
+    var imagesJson = JSON.stringify(imagePool).replace(/<\/script/gi, '<\\/script');
     var snippet = '<!-- 코코포리아 로그 모음 · 티스토리 HTML 모드 삽입용 · 아래 탭을 눌러 로그 전환 -->\n' +
 `<div class="cclogtabs-embed-bg" style="background:#303131;border-radius:16px;overflow:hidden;"><div id="${uid}" class="cclogtabs-embed"><style>
 #${uid},#${uid} *{box-sizing:border-box}
@@ -3057,6 +3086,7 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
 <div class="cclogtabs-tabbar" id="${uid}_tabbar"></div>
 <script>(function(){
 var panels=${panelsJson};
+var images=${imagesJson};
 var active=0;
 var tabbar=document.getElementById('${uid}_tabbar');
 var list=document.getElementById('${uid}_list');
@@ -3066,7 +3096,8 @@ function rowsHtml(records){
   return records.map(function(e){
     if(e.type==='divider') return '<div class="cclog-divider">'+esc(e.label)+'</div>';
     var cls='cclog-msg'+(e.narration?' is-narration':'')+(e.system?' is-system':'')+(!e.isMain?' has-tab-badge':'');
-    var av=e.portrait?'<img class="cclog-avatar" loading="lazy" decoding="async" src="'+esc(e.portrait)+'" alt="">':'<div class="cclog-avatar-ph"></div>';
+    var portraitSrc=e.portraitKey?images[e.portraitKey]:'';
+    var av=portraitSrc?'<img class="cclog-avatar" loading="lazy" decoding="async" src="'+esc(portraitSrc)+'" alt="">':'<div class="cclog-avatar-ph"></div>';
     var nameRow=e.name?'<div class="cclog-name-row"><span class="cclog-name" style="color:'+esc(e.color)+'">'+esc(e.name)+'</span>'+(!e.isMain?'<span class="cclog-badge">'+esc(e.tab)+'</span>':'')+'</div>':'';
     var floatBadge=(!e.name&&!e.isMain)?'<span class="cclog-badge cclog-badge-float">'+esc(e.tab)+'</span>':'';
     var tc=e.rollish?' cclog-roll'+(e.rollResult?' roll-'+e.rollResult:''):'';
