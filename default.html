@@ -949,6 +949,8 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
   color:#7a7a7a;
 }
 .tab-chip.active{background:#505050;color:#d4d4d4;border-color:#666;}
+.tv-tools-row-block{margin-bottom:10px;}
+#tvChannelTabChips{display:flex; flex-wrap:wrap; gap:6px; margin-top:4px;}
 
 ::-webkit-scrollbar{width:8px;height:8px;}
 ::-webkit-scrollbar-thumb{background:#444;border-radius:8px;}
@@ -1112,6 +1114,10 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       <div id="tvViewer" class="tv-viewer" style="display:none;">
         <div id="tvTabBar" class="tv-tab-bar"></div>
         <div id="tvTools" class="tv-tools">
+          <div id="tvChannelTabSection" class="tv-tools-row-block" style="display:none;">
+            <span class="tv-tools-label">채널 표시</span>
+            <div id="tvChannelTabChips"></div>
+          </div>
           <div class="tv-tools-row tv-fontsize-row">
             <span class="tv-tools-label">글자 크기</span>
             <div class="font-size-grid">
@@ -1407,9 +1413,19 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     state.characters.__counts = counts;
   }
 
+  function isDefaultHiddenTab(tab){
+    // "other"(코코포리아 기본 잡담 채널)랑 "비밀(...)" 계열(귓속말/비밀 채널)은 보통 로그
+    // 정리할 때 굳이 다 안 보고 싶은 경우가 많아서, 처음 올릴 때는 꺼둔 채로 시작하고
+    // 필요하면 직접 눌러서 켜도록 한다. 그 외 탭(메인/정보/계절 이름 등)은 그대로 켜져 있다.
+    var t = String(tab || '').trim();
+    if (/^other$/i.test(t)) return true;
+    if (/^비밀/.test(t)) return true;
+    return false;
+  }
+
   function rebuildTabs(){
     state.entries.forEach(function(e){
-      if (e.type === 'msg' && !(e.tab in state.tabs)) state.tabs[e.tab] = true;
+      if (e.type === 'msg' && !(e.tab in state.tabs)) state.tabs[e.tab] = !isDefaultHiddenTab(e.tab);
     });
   }
 
@@ -2705,6 +2721,7 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
         if (ev.target.isContentEditable) return;
         tvState.activeId = log.id;
         tvRenderTabBar();
+        tvRenderTabChips();
         tvRenderList();
       };
 
@@ -2782,13 +2799,46 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
     });
   }
 
+  function tvRenderTabChips(){
+    var section = document.getElementById('tvChannelTabSection');
+    var wrap = document.getElementById('tvChannelTabChips');
+    var log = tvActiveLog();
+    if (!section || !wrap) return;
+    if (!log) { section.style.display = 'none'; return; }
+    if (!log.tabs) log.tabs = {};
+    var keys = Object.keys(log.tabs);
+    var isMainTabName = function(t){ return /^(main|메인|メイン)$/i.test(String(t || '').trim()); };
+    keys.sort(function(a,b){
+      var ra = isMainTabName(a) ? 0 : 1, rb = isMainTabName(b) ? 0 : 1;
+      if (ra !== rb) return ra - rb;
+      return String(a).localeCompare(String(b), 'ko');
+    });
+    section.style.display = keys.length ? 'block' : 'none';
+    wrap.innerHTML = '';
+    keys.forEach(function(k){
+      var enabled = log.tabs[k] !== false;
+      var chip = document.createElement('div');
+      chip.className = 'tab-chip' + (enabled ? ' active' : '');
+      chip.textContent = '[' + k + ']';
+      chip.title = '클릭하면 이 채널의 표시 여부를 바꿔요';
+      chip.onclick = function(){
+        log.tabs[k] = !enabled;
+        tvRenderTabChips();
+        tvRenderList();
+      };
+      wrap.appendChild(chip);
+    });
+  }
+
   function tvRenderList(){
     var list = document.getElementById('tvLogList');
     list.innerHTML = '';
     var log = tvActiveLog();
     if (!log) return;
+    if (!log.tabs) log.tabs = {};
     var host = tvHostFor(log);
     log.entries.forEach(function(e){
+      if (e.type !== 'divider' && log.tabs[e.tab] === false) return;
       if (state.hideBlankDialogue && e.type !== 'divider' && isDialogueBlankForExport(e.html)) return;
       list.appendChild(msgRow(e, host));
     });
@@ -2938,6 +2988,7 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
     viewer.style.display = 'flex';
     dlBtn.disabled = false;
     tvRenderTabBar();
+    tvRenderTabChips();
     tvRenderList();
   }
 
@@ -2971,7 +3022,11 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
         });
         var id = 'tv' + (tvLogIdSeq++);
         var title = file.name.replace(/\.html?$/i, '');
-        tvState.logs.push({ id: id, title: title, entries: entries, orderRef: null, orderRefName: '', selectedIds: {}, selectedCount: 0 });
+        var tabs = {};
+        entries.forEach(function(e){
+          if (e.type === 'msg' && !(e.tab in tabs)) tabs[e.tab] = !isDefaultHiddenTab(e.tab);
+        });
+        tvState.logs.push({ id: id, title: title, entries: entries, tabs: tabs, orderRef: null, orderRefName: '', selectedIds: {}, selectedCount: 0 });
         if (firstNewId === null) firstNewId = id;
         pending--;
         if (pending === 0) {
@@ -3004,8 +3059,10 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
     var title = document.getElementById('tvTitleInput').value.trim() || '로그 모음';
     var uid = 'cclogtabs_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
     var panels = tvState.logs.map(function(l){
+      var tabs = l.tabs || {};
       var visibleEntries = l.entries.filter(function(e){
         if (e.type === 'divider') return true;
+        if (tabs[e.tab] === false) return false;
         if (state.hideBlankDialogue && isDialogueBlankForExport(e.html)) return false;
         return true;
       });
