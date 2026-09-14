@@ -12,6 +12,7 @@
     --bg-log: #2a2a2a;
     --log-bg: #2a2a2a;
     --log-card-width: 520px;
+    --avatar-radius: 50%;
     --msg-text-color: #f2f2f2;
     --roll-bg: #272727;
     --roll-border: #8a8a8a;
@@ -849,7 +850,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
 .msg-row:hover{background:#323333;}
 .msg-row .avatar{
   width:34px;height:34px;
-  border-radius:50%;
+  border-radius:var(--avatar-radius, 50%);
   margin-top:2px;
   background:#303131;
 }
@@ -959,6 +960,17 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
         <div id="fileChips"></div>
       </div>
 
+
+      <div class="section">
+        <div class="display-setting-row">
+          <label for="avatarShapeInput">이미지 모양</label>
+          <select id="avatarShapeInput" class="hex-color-input" style="width:110px;">
+            <option value="circle">원형</option>
+            <option value="square">정사각형</option>
+            <option value="rounded">라운드 사각형</option>
+          </select>
+        </div>
+      </div>
 
       <div class="section">
         <p class="section-title">글자 크기</p>
@@ -1123,6 +1135,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     bgColor: null,
     textColor: null,
     cardMaxWidth: null,
+    avatarShape: null,
     hideBlankDialogue: true,
     renderLimit: 500
   };
@@ -2057,7 +2070,8 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     rollBg: '#272727', rollBorder: '#8a8a8a', rollText: '#f2f2f2',
     rollCrit: '#22c55e', rollHard: '#34d399', rollSuccess: '#4ade80',
     rollFail: '#f87171', rollFumble: '#dc2626',
-    cardWidth: 520
+    cardWidth: 520,
+    avatarShape: 'circle'
   };
 
   function normalizeHex(v){
@@ -2120,12 +2134,26 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     state.cardMaxWidth = n;
     return n;
   }
+  var AVATAR_SHAPE_RADIUS = { circle: '50%', square: '0', rounded: '8px' };
+  function applyAvatarShape(v){
+    var shape = AVATAR_SHAPE_RADIUS[v] ? v : DISPLAY_DEFAULTS.avatarShape;
+    document.documentElement.style.setProperty('--avatar-radius', AVATAR_SHAPE_RADIUS[shape]);
+    state.avatarShape = shape;
+    return shape;
+  }
 
   var cardWidthInput = document.getElementById('cardWidthInput');
   cardWidthInput.value = DISPLAY_DEFAULTS.cardWidth;
   applyCardWidth(DISPLAY_DEFAULTS.cardWidth);
   cardWidthInput.addEventListener('change', function(){
     cardWidthInput.value = applyCardWidth(cardWidthInput.value);
+  });
+
+  var avatarShapeInput = document.getElementById('avatarShapeInput');
+  avatarShapeInput.value = DISPLAY_DEFAULTS.avatarShape;
+  applyAvatarShape(DISPLAY_DEFAULTS.avatarShape);
+  avatarShapeInput.addEventListener('change', function(){
+    avatarShapeInput.value = applyAvatarShape(avatarShapeInput.value);
   });
 
   var bgColorCtl = bindHexColorInput('bgColorInput', 'bgColorPreview', DISPLAY_DEFAULTS.bg, applyBgColor);
@@ -2138,6 +2166,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     bgColorCtl.set(DISPLAY_DEFAULTS.bg);
     textColorCtl.set(DISPLAY_DEFAULTS.text);
     cardWidthInput.value = applyCardWidth(DISPLAY_DEFAULTS.cardWidth);
+    avatarShapeInput.value = applyAvatarShape(DISPLAY_DEFAULTS.avatarShape);
     nameFontSizeInput.value = 11;
     bodyFontSizeInput.value = 11;
     rollFontSizeInput.value = 10;
@@ -2247,7 +2276,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
 
   document.getElementById('resetBtn').onclick = function(){
     if (!confirm('전부 초기화할까요? 되돌릴 수 없어요.')) return;
-    state = { entries:[], characters:{}, tabs:{}, tabOpacity:{}, tabOpacityValue: state.tabOpacityValue || 72, fileNames:[], nameFontSize: state.nameFontSize, bodyFontSize: state.bodyFontSize, rollFontSize: state.rollFontSize, bgColor: state.bgColor, textColor: state.textColor, cardMaxWidth: state.cardMaxWidth, hideBlankDialogue: state.hideBlankDialogue, renderLimit: RENDER_BATCH_SIZE };
+    state = { entries:[], characters:{}, tabs:{}, tabOpacity:{}, tabOpacityValue: state.tabOpacityValue || 72, fileNames:[], nameFontSize: state.nameFontSize, bodyFontSize: state.bodyFontSize, rollFontSize: state.rollFontSize, bgColor: state.bgColor, textColor: state.textColor, cardMaxWidth: state.cardMaxWidth, avatarShape: state.avatarShape, hideBlankDialogue: state.hideBlankDialogue, renderLimit: RENDER_BATCH_SIZE };
     selectedIds = {};
     selectedCount = 0;
     document.getElementById('fileChips').innerHTML = '';
@@ -2353,7 +2382,8 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       rollFontSize: state.rollFontSize || 10,
       bg: state.bgColor || '#303131', text: state.textColor || '#c0c0c0',
       rollBg:'#282929', rollBorder:'#3e3f3f', rollText:'#f2f2f2', crit:'#22c55e', fumble:'#dc2626', opacity:(state.tabOpacityValue || 72) / 100,
-      cardWidth: state.cardMaxWidth || 520
+      cardWidth: state.cardMaxWidth || 520,
+      avatarRadius: {circle:'50%', square:'0', rounded:'8px'}[state.avatarShape] || '50%'
     };
     var safeTitle = escapeHtml(title);
     var json = JSON.stringify(data, null, 2).replace(/<\/script/gi,'<\\/script');
@@ -2397,7 +2427,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       height: 34px;
       object-fit: cover;
       object-position: top center;
-      border-radius: 50%;
+      border-radius: ${vars.avatarRadius};
       flex-shrink: 0;
       margin-top: 2px;
     }
@@ -2565,13 +2595,14 @@ system:!!(e.name && e.name.trim().toLowerCase()==='system') || e.msgType==='syst
       rollFontSize: state.rollFontSize || 10,
       bg: state.bgColor || '#303131', text: state.textColor || '#c0c0c0',
       rollBg:'#282929', rollBorder:'#3e3f3f', rollText:'#f2f2f2', crit:'#22c55e', fumble:'#dc2626', opacity:(state.tabOpacityValue || 72) / 100,
-      cardWidth: state.cardMaxWidth || 520
+      cardWidth: state.cardMaxWidth || 520,
+      avatarRadius: {circle:'50%', square:'0', rounded:'8px'}[state.avatarShape] || '50%'
     };
     var snippet = '<!-- 코코포리아 로그 · 티스토리 HTML 모드 삽입용 -->\n' +
 `<div class="cclog-embed-bg" style="background:${vars.bg};border-radius:16px;overflow:hidden;"><div id="${uid}" class="cclog-embed"><style>
 #${uid},#${uid} *{box-sizing:border-box}#${uid}{max-width:${vars.cardWidth}px;margin:0 auto;background:${vars.bg};border:1px solid #3e3f3f;border-radius:16px;overflow:hidden;font-family:${vars.font};color:${vars.text}}
 #${uid} .cclog-list{padding:12px 0}#${uid} .cclog-msg{display:flex;gap:14px;align-items:flex-start;padding:14px 20px;box-shadow:0 1px 0 #3a3b3b;position:relative}#${uid} .cclog-msg:last-child{box-shadow:none}
-#${uid} .cclog-avatar{width:34px;height:34px;object-fit:cover;object-position:top center;border-radius:50%;flex-shrink:0;margin-top:2px}#${uid} .cclog-avatar-ph{width:34px;height:34px;flex-shrink:0;visibility:hidden}
+#${uid} .cclog-avatar{width:34px;height:34px;object-fit:cover;object-position:top center;border-radius:${vars.avatarRadius};flex-shrink:0;margin-top:2px}#${uid} .cclog-avatar-ph{width:34px;height:34px;flex-shrink:0;visibility:hidden}
 #${uid} .cclog-body{flex:1;min-width:0;position:relative}#${uid} .cclog-name-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:2px;width:100%}#${uid} .cclog-badge{display:inline-flex;align-items:center;max-width:72px;padding:1px 4px;border:1px solid #353c52;border-radius:4px;background:transparent;color:#6a6a7a;font-size:9px;line-height:1.35;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-left:auto}#${uid} .cclog-badge-float{position:absolute;top:0;right:0}#${uid} .cclog-msg.has-tab-badge .cclog-text{padding-right:58px}#${uid} .cclog-msg.tab-muted{opacity:${vars.opacity}}#${uid} .cclog-name{font-size:${vars.nameFontSize}px;font-weight:600}#${uid} .cclog-text{font-size:${vars.bodyFontSize}px;line-height:1.55;color:${vars.text};word-break:break-word;white-space:pre-wrap}#${uid} .cclog-roll{display:inline-block;margin-top:3px;padding:3px 8px;background:${vars.rollBg};border:1px solid ${vars.rollBorder};border-radius:4px;color:${vars.rollText};font-size:${vars.rollFontSize}px}
 #${uid} .roll-crit{color:${vars.crit};border-color:${vars.crit};font-weight:700}#${uid} .roll-hard,#${uid} .roll-success,#${uid} .roll-fail{color:${vars.rollText};border-color:${vars.rollBorder}}#${uid} .roll-fumble{color:${vars.fumble};border-color:${vars.fumble};font-weight:700}
 #${uid} .is-narration,#${uid} .is-system{align-items:center}
@@ -3095,6 +3126,7 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
     var panelsJson = JSON.stringify(panels).replace(/<\/script/gi, '<\\/script');
     var imagesJson = JSON.stringify(imagePool).replace(/<\/script/gi, '<\\/script');
     var cardWidth = state.cardMaxWidth || 520;
+    var avatarRadius = {circle:'50%', square:'0', rounded:'8px'}[state.avatarShape] || '50%';
     var snippet = '<!-- 코코포리아 로그 모음 · 티스토리 HTML 모드 삽입용 · 아래 탭을 눌러 로그 전환 -->\n' +
 `<div class="cclogtabs-embed-bg" style="background:#303131;border-radius:16px;overflow:hidden;"><div id="${uid}" class="cclogtabs-embed"><style>
 #${uid},#${uid} *{box-sizing:border-box}
@@ -3107,7 +3139,7 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
 #${uid} .cclog-list{padding:12px 0}
 #${uid} .cclog-msg{display:flex;gap:14px;align-items:flex-start;padding:14px 20px;box-shadow:0 1px 0 #3a3b3b;position:relative}
 #${uid} .cclog-msg:last-child{box-shadow:none}
-#${uid} .cclog-avatar{width:34px;height:34px;object-fit:cover;object-position:top center;border-radius:50%;flex-shrink:0;margin-top:2px;background:#333}
+#${uid} .cclog-avatar{width:34px;height:34px;object-fit:cover;object-position:top center;border-radius:${avatarRadius};flex-shrink:0;margin-top:2px;background:#333}
 #${uid} .cclog-avatar-ph{width:34px;height:34px;flex-shrink:0;visibility:hidden}
 #${uid} .cclog-body{flex:1;min-width:0;position:relative}
 #${uid} .cclog-name-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:2px;width:100%}
