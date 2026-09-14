@@ -1035,8 +1035,8 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
         </div>
         <div class="find-status" id="bulkSelectStatus">각 줄 오른쪽의 체크박스로 여러 개를 골라요. "묶기"는 맨 위에서 처음 체크한 자리로 순서대로 모아주고, "삭제"는 지웁니다.</div>
         <label class="checkbox-row" style="margin-top:8px;">
-          <input type="checkbox" id="showBlankDialogueToggle" />
-          <span>대사 없거나 공백만 있는 대사 삭제 해제하기</span>
+          <input type="checkbox" id="showBlankDialogueToggle" checked />
+          <span>대사 없는 항목 자동 삭제 (해제하면 삭제하지 않고 표시)</span>
         </label>
       </div>
 
@@ -1214,9 +1214,15 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       if (spans.length < 3) return;
       var tab = (spans[0].textContent || '').trim().replace(/^\[|\]$/g, '').trim();
       var name = (spans[1].textContent || '').trim();
-      var html = trimKeepIdeographicSpace(spans[2].innerHTML);
+      var htmlRaw = spans[2].innerHTML;
+      var html = trimKeepIdeographicSpace(htmlRaw);
+      // 원래 내용이 있었는데(예: 반각 스페이스만) 다듬다 보니 통째로 없어져 버리는 경우는
+      // 원본을 그대로 살린다 — 스페이스만 있는 대사도 실제로 쓰는 표기일 수 있어서다.
+      if (!html && htmlRaw) html = htmlRaw;
       var textOnly = trimKeepIdeographicSpace(spans[2].textContent || '');
-      if (!name && !textOnly) return;
+      // 이름도 대사도 없는 줄이라도 건너뛰지 않는다 — 여기서 걸러버리면 "빈 대사 삭제 해제"
+      // 체크박스를 켜도 되살릴 수 없다(애초에 안 들어왔으니까). 표시 여부는 그 체크박스가
+      // 전적으로 결정하게 한다.
       out.push({
         id: nextId(),
         type: 'msg',
@@ -1224,6 +1230,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
         name: name,
         color: color,
         html: html || '&nbsp;',
+        wasEmpty: !html,
         isNarration: !name,
         portraitId: null,
         avatarSrc: ''
@@ -1260,12 +1267,17 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
         var clone = secondary.cloneNode(true);
         // 시각·[편집 완료] 표시는 캡션 span으로 붙어있다. 대사에서 떼어낸다.
         clone.querySelectorAll('.MuiTypography-caption, span[class*="caption"]').forEach(function(c){ c.parentNode.removeChild(c); });
-        html = trimKeepIdeographicSpace(clone.innerHTML);
+        var htmlRaw = clone.innerHTML;
+        html = trimKeepIdeographicSpace(htmlRaw);
+        // 원래 내용이 있었는데(예: 반각 스페이스만) 다듬다 보니 통째로 없어져 버리는 경우는
+        // 원본을 그대로 살린다 — 스페이스만 있는 대사도 실제로 쓰는 표기일 수 있어서다.
+        if (!html && htmlRaw) html = htmlRaw;
         textOnly = trimKeepIdeographicSpace(clone.textContent);
       }
 
-      // 이름도 대사도 이미지도 없는 줄([편집 완료]만 남은 빈 캡션 등)은 건너뛴다
-      if (!name && !textOnly && !img) return;
+      // 이름도 대사도 이미지도 없는 줄([편집 완료]만 남은 빈 캡션 등)이라도 건너뛰지 않는다 —
+      // 여기서 걸러버리면 "빈 대사 삭제 해제" 체크박스를 켜도 되살릴 수 없다. 표시 여부는
+      // 그 체크박스가 전적으로 결정하게 한다.
 
       // 아이콘을 등록 안 한 캐릭터는 /blank.gif 같은 빈 플레이스홀더 이미지가 찍혀 나온다.
       // 이걸 그대로 쓰면 깨진 사각형만 보이니, 그런 경우는 그냥 빈칸으로 둔다.
@@ -1282,6 +1294,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
         name: name,
         color: color,
         html: html || (avatarSrc ? '' : '&nbsp;'),
+        wasEmpty: !html && !avatarSrc,
         isNarration: !name,
         portraitId: null,
         avatarSrc: avatarSrc
@@ -1578,7 +1591,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     var visible = state.entries.filter(function(e){
       if (e.type === 'divider') return true;
       if (state.tabs[e.tab] === false) return false;
-      if (state.hideBlankDialogue && isDialogueBlankForExport(e.html)) return false;
+      if (state.hideBlankDialogue && isDialogueBlankForExport(e)) return false;
       return true;
     });
     document.getElementById('topHint').textContent = visible.length + '개 항목';
@@ -2192,12 +2205,9 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       var reader = new FileReader();
       reader.onload = function(){
         var parsed = parseLogHtml(reader.result);
-        // 대사 내용이 빈 항목은 올릴 때 자동으로 걸러낸다("대사 빈 항목 삭제" 버튼과 같은 기준).
-        // 이미지만 있는 항목이나, 캐릭터 이름이 정해져 있는 항목은 그대로 둔다(이름이 있으면
-        // 대사가 　뿐이어도 의도적으로 쓴 표기일 수 있어 지우지 않는다).
-        parsed = parsed.filter(function(e){
-          return !(e.type === 'msg' && !e.name && !e.avatarSrc && isBlankValue(entryPlainText(e)));
-        });
+        // 예전엔 여기서 빈 대사를 한 번 더 걸러냈는데, 그러면 "빈 대사 삭제 해제" 체크박스를
+        // 켜도 되살아나지 않는 문제가 있었다(이 단계에서 아예 없어져 버리니까). 이제 빈 대사
+        // 표시 여부는 그 체크박스(hideBlankDialogue, renderLog에서 처리) 하나로만 결정한다.
         var fid = 'f' + (fileIdSeq++);
         parsed.forEach(function(e){ e.fileId = fid; });
         state.entries = state.entries.concat(parsed);
@@ -2340,8 +2350,8 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
   };
 
   document.getElementById('showBlankDialogueToggle').onchange = function(ev){
-    // 체크하면(=삭제 해제) 대사 없는/공백뿐인 항목도 미리보기·내보내기에 다시 나타난다.
-    state.hideBlankDialogue = !ev.target.checked;
+    // 체크(기본값)하면 대사 없는 항목을 자동으로 지운다. 해제하면 지우지 않고 그대로 보여준다.
+    state.hideBlankDialogue = ev.target.checked;
     renderLog();
   };
 
@@ -2357,14 +2367,18 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
-  function isDialogueBlankForExport(html){
-    // html 출력 시 대사 란이 비어있는 항목은 걸러낸다. 여기서 "공백"은 일반 반각 공백류
-    // (스페이스·탭·줄바꿈 등)만 해당하고, 　(U+3000 전각공백)는 공백으로 치지 않는다 —
-    // 　만 있는 대사는 실제로 쓰는 표기라 그대로 남긴다.
+  function isDialogueBlankForExport(e){
+    // 자동 삭제 대상은 진짜로 아무 내용도 없는 대사만이다. 　(전각공백)든 ' '(반각 스페이스)든
+    // 뭐든 한 글자라도 들어있으면 실제로 쓰는 표기로 보고 지우지 않는다. wasEmpty는 파싱
+    // 단계에서 원래 내용이 하나도 없었을 때만 붙는 플래그라, 실제로 스크랩된 대사가 우연히
+    // "&nbsp;" 한 글자짜리인 경우(문자열만 봐서는 우리가 붙인 표시와 구분이 안 된다)와
+    // 헷갈리지 않는다.
+    if (e && e.wasEmpty) return true;
+    var html = (e && e.html) || '';
     var d = document.createElement('div');
-    d.innerHTML = html || '';
+    d.innerHTML = html;
     var plain = d.textContent || '';
-    return !plain.replace(/[ \t\r\n\f\v\u00A0\u2000-\u200A\u2028\u2029\u202F\u205F\uFEFF]+/g, '').length;
+    return plain.length === 0;
   }
 
   function buildImagePool(){
@@ -2390,7 +2404,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     var visible = state.entries.filter(function(e){
       if (e.type === 'divider') return true;
       if (state.tabs[e.tab] === false) return false;
-      if (state.hideBlankDialogue && isDialogueBlankForExport(e.html)) return false;
+      if (state.hideBlankDialogue && isDialogueBlankForExport(e)) return false;
       return true;
     });
     var imgPool = buildImagePool();
@@ -2602,7 +2616,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     var visible = state.entries.filter(function(e){
       if (e.type === 'divider') return true;
       if (state.tabs[e.tab] === false) return false;
-      if (state.hideBlankDialogue && isDialogueBlankForExport(e.html)) return false;
+      if (state.hideBlankDialogue && isDialogueBlankForExport(e)) return false;
       return true;
     });
     var uid = 'cclog_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
@@ -2888,7 +2902,7 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
     var host = tvHostFor(log);
     log.entries.forEach(function(e){
       if (e.type !== 'divider' && log.tabs[e.tab] === false) return;
-      if (state.hideBlankDialogue && e.type !== 'divider' && isDialogueBlankForExport(e.html)) return;
+      if (state.hideBlankDialogue && e.type !== 'divider' && isDialogueBlankForExport(e)) return;
       list.appendChild(msgRow(e, host));
     });
     tvRenderOrderRefStatus();
@@ -3064,11 +3078,9 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
       var reader = new FileReader();
       reader.onload = function(){
         var entries = parseLogHtml(reader.result);
-        // 대사 내용이 빈 항목은 올릴 때 자동으로 걸러낸다("대사 빈 항목 삭제" 버튼과 같은 기준).
-        // 캐릭터 이름이 정해져 있는 항목은 대사가 　뿐이어도 지우지 않는다.
-        entries = entries.filter(function(e){
-          return !(e.type === 'msg' && !e.name && !e.avatarSrc && isBlankValue(entryPlainText(e)));
-        });
+        // 예전엔 여기서 빈 대사를 한 번 더 걸러냈는데, "빈 대사 삭제 해제" 체크박스를 켜도
+        // 되살아나지 않는 문제가 있었다. 이제 표시 여부는 그 체크박스 하나로만 결정한다
+        // (tvRenderList의 hideBlankDialogue 필터).
         var id = 'tv' + (tvLogIdSeq++);
         var title = file.name.replace(/\.html?$/i, '');
         var tabs = {};
@@ -3113,7 +3125,7 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
       var visibleEntries = l.entries.filter(function(e){
         if (e.type === 'divider') return true;
         if (tabs[e.tab] === false) return false;
-        if (state.hideBlankDialogue && isDialogueBlankForExport(e.html)) return false;
+        if (state.hideBlankDialogue && isDialogueBlankForExport(e)) return false;
         return true;
       });
       return { title: l.title, records: visibleEntries.map(function(e){ return tvEntryToRecord(e, imgPool); }) };
