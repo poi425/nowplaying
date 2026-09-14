@@ -11,6 +11,7 @@
     --bg-panel-2: #272727;
     --bg-log: #2a2a2a;
     --log-bg: #2a2a2a;
+    --log-card-width: 520px;
     --msg-text-color: #f2f2f2;
     --roll-bg: #272727;
     --roll-border: #8a8a8a;
@@ -482,7 +483,8 @@
   }
   .msg-img-input:focus{border-color:var(--accent); color:var(--text);}
 
-  .msg-row.is-narration{
+  .msg-row.is-narration,
+  .msg-row.is-system{
     align-items:center;
   }
 
@@ -543,11 +545,11 @@
   input[type=color]::-webkit-color-swatch-wrapper{padding:0;}
   input[type=color]::-webkit-color-swatch{border:none; border-radius:50%;}
 
-  .msg-row.is-system .avatar{display:none;}
+  .msg-row.is-system .avatar{visibility:hidden;}
   .msg-row.is-system .msg-name,
   .msg-row.is-system .msg-text{
     color:var(--text-faint);
-    font-weight:400;
+    font-weight:700;
   }
 
   @media (max-width: 760px){
@@ -674,7 +676,7 @@
   border-radius:16px;
   padding:20px 0;
 }
-#tvLogList{max-width:520px; margin:0 auto; padding:0; font-family:var(--font-log);}
+#tvLogList{max-width:var(--log-card-width, 520px); margin:0 auto; padding:0; font-family:var(--font-log);}
 
 @media(max-width:760px){
   #tvHead{flex-wrap:wrap; gap:8px;}
@@ -865,7 +867,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
 }
 #topbar .hint{font-size:10.5px;color:#6a6a6a;margin-top:2px;}
 #logScroll{background:var(--bg-app);padding:20px 0 80px;}
-#logInner{max-width:520px;margin:0 auto;padding:20px 0;font-family:var(--font-log);background:#303131;border:1px solid #3e3f3f;border-radius:16px;overflow:hidden;}
+#logInner{max-width:var(--log-card-width, 520px);margin:0 auto;padding:20px 0;font-family:var(--font-log);background:#303131;border:1px solid #3e3f3f;border-radius:16px;overflow:hidden;}
 .placeholder-state{margin:90px auto;padding:0 28px;font-size:12px;color:#6a6a6a;line-height:1.9;}
 #logList{padding:0;}
 
@@ -1054,6 +1056,10 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
             <span id="textColorPreview" class="color-preview"></span>
           </div>
         </div>
+        <div class="display-setting-row">
+          <label for="cardWidthInput">가로 폭(px)</label>
+          <input type="number" id="cardWidthInput" class="hex-color-input" min="320" max="900" step="10" style="width:70px;" />
+        </div>
 
         <a id="displayResetBtn" class="display-reset-link">기본값으로</a>
       </div>
@@ -1167,11 +1173,12 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     fileNames: [],
     orderRef: null,
     orderRefName: '',
-    nameFontSize: 12,
+    nameFontSize: 11,
     bodyFontSize: 11,
     rollFontSize: 10,
     bgColor: null,
     textColor: null,
+    cardMaxWidth: null,
     hideBlankDialogue: true
   };
   var idSeq = 1;
@@ -1831,7 +1838,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
 
     var meta = document.createElement('div');
     meta.className = 'msg-meta';
-    if (e.name) {
+    if (e.name && !isSystem) {
       var nameEl = document.createElement('span');
       nameEl.className = 'msg-name';
       nameEl.style.color = e.color;
@@ -1840,9 +1847,10 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       nameEl.oninput = function(){ e.name = nameEl.textContent.trim(); host.onEdit(); };
       meta.appendChild(nameEl);
     }
-    if (!isMainTab && !e.name) {
+    if (!isMainTab && (!e.name || isSystem)) {
       // 서술 줄의 탭 배지는 float로 띄워서, 대사 텍스트가 배지 자리를 피해 자연스럽게
       // 줄바꿈되도록 한다(겹쳐서 안 보이는 문제 방지). meta보다 먼저 넣어야 float가 먹는다.
+      // system 항목도 이름("system")을 화면에 안 보여주기로 했으니 같은 방식을 쓴다.
       var floatBadge = document.createElement('span');
       floatBadge.className = 'tab-badge tab-badge-float';
       floatBadge.textContent = e.tab;
@@ -1851,7 +1859,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     // 이름이 있을 때만 배지를 이름 옆(meta 줄)에 같이 넣는다. 이름이 없는 서술 줄까지 여기 넣으면
     // meta가 배지 하나만으로도 한 줄 높이를 차지해버려서, 서술 줄의 "이미지와 세로 가운데 정렬"이
     // 배지 줄 높이만큼 위로 밀려 텍스트와 어긋나 보인다. 서술 줄의 배지는 위에서 따로 띄웠다.
-    if (!isMainTab && e.name) {
+    if (!isMainTab && e.name && !isSystem) {
       var badgeEl = document.createElement('span');
       badgeEl.className = 'tab-badge';
       badgeEl.textContent = e.tab;
@@ -2054,14 +2062,14 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
   }
   [nameFontSizeInput, bodyFontSizeInput, rollFontSizeInput, tvNameFontSizeInput, tvBodyFontSizeInput, tvRollFontSizeInput]
     .filter(Boolean).forEach(populateFontSizeSelect);
-  nameFontSizeInput.value = state.nameFontSize || 12;
+  nameFontSizeInput.value = state.nameFontSize || 11;
   bodyFontSizeInput.value = state.bodyFontSize || 11;
   rollFontSizeInput.value = state.rollFontSize || 10;
   function clampFontSize(value, fallback){
     return Math.max(8, Math.min(24, Number(value) || fallback));
   }
   function applyFontSizes(){
-    state.nameFontSize = clampFontSize(nameFontSizeInput.value, 12);
+    state.nameFontSize = clampFontSize(nameFontSizeInput.value, 11);
     state.bodyFontSize = clampFontSize(bodyFontSizeInput.value, 11);
     state.rollFontSize = clampFontSize(rollFontSizeInput.value, 10);
     nameFontSizeInput.value = state.nameFontSize;
@@ -2088,7 +2096,8 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     bg: '#2a2a2a', text: '#f2f2f2',
     rollBg: '#272727', rollBorder: '#8a8a8a', rollText: '#f2f2f2',
     rollCrit: '#22c55e', rollHard: '#34d399', rollSuccess: '#4ade80',
-    rollFail: '#f87171', rollFumble: '#dc2626'
+    rollFail: '#f87171', rollFumble: '#dc2626',
+    cardWidth: 520
   };
 
   function normalizeHex(v){
@@ -2145,6 +2154,19 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
 
   function applyBgColor(v){ document.documentElement.style.setProperty('--log-bg', v); state.bgColor = v; }
   function applyTextColor(v){ document.documentElement.style.setProperty('--msg-text-color', v); state.textColor = v; }
+  function applyCardWidth(v){
+    var n = Math.max(320, Math.min(900, Number(v) || DISPLAY_DEFAULTS.cardWidth));
+    document.documentElement.style.setProperty('--log-card-width', n + 'px');
+    state.cardMaxWidth = n;
+    return n;
+  }
+
+  var cardWidthInput = document.getElementById('cardWidthInput');
+  cardWidthInput.value = DISPLAY_DEFAULTS.cardWidth;
+  applyCardWidth(DISPLAY_DEFAULTS.cardWidth);
+  cardWidthInput.addEventListener('change', function(){
+    cardWidthInput.value = applyCardWidth(cardWidthInput.value);
+  });
 
   var bgColorCtl = bindHexColorInput('bgColorInput', 'bgColorPreview', DISPLAY_DEFAULTS.bg, applyBgColor);
   var textColorCtl = bindHexColorInput('textColorInput', 'textColorPreview', DISPLAY_DEFAULTS.text, applyTextColor);
@@ -2155,7 +2177,8 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
   displayResetBtn.onclick = function(){
     bgColorCtl.set(DISPLAY_DEFAULTS.bg);
     textColorCtl.set(DISPLAY_DEFAULTS.text);
-    nameFontSizeInput.value = 12;
+    cardWidthInput.value = applyCardWidth(DISPLAY_DEFAULTS.cardWidth);
+    nameFontSizeInput.value = 11;
     bodyFontSizeInput.value = 11;
     rollFontSizeInput.value = 10;
     applyFontSizes();
@@ -2290,7 +2313,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
 
   document.getElementById('resetBtn').onclick = function(){
     if (!confirm('전부 초기화할까요? 되돌릴 수 없어요.')) return;
-    state = { entries:[], characters:{}, tabs:{}, tabOpacity:{}, tabOpacityValue: state.tabOpacityValue || 72, fileNames:[], orderRef:null, orderRefName:'', nameFontSize: state.nameFontSize, bodyFontSize: state.bodyFontSize, rollFontSize: state.rollFontSize, bgColor: state.bgColor, textColor: state.textColor, hideBlankDialogue: state.hideBlankDialogue };
+    state = { entries:[], characters:{}, tabs:{}, tabOpacity:{}, tabOpacityValue: state.tabOpacityValue || 72, fileNames:[], orderRef:null, orderRefName:'', nameFontSize: state.nameFontSize, bodyFontSize: state.bodyFontSize, rollFontSize: state.rollFontSize, bgColor: state.bgColor, textColor: state.textColor, cardMaxWidth: state.cardMaxWidth, hideBlankDialogue: state.hideBlankDialogue };
     selectedIds = {};
     selectedCount = 0;
     document.getElementById('fileChips').innerHTML = '';
@@ -2344,6 +2367,24 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     return !plain.replace(/[ \t\r\n\f\v\u00A0\u2000-\u200A\u2028\u2029\u202F\u205F\uFEFF]+/g, '').length;
   }
 
+  function buildImagePool(){
+    // 아바타는 코코포리아 CDN 링크(문자열)인데, 같은 캐릭터 링크가 대사마다 그대로
+    // 반복돼서 길어진다. 실제 쓰이는 링크마다 짧은 키를 한 번만 배정해 풀에 저장해두고,
+    // 각 대사는 그 키만 참조하도록 한다.
+    var pool = {};
+    var keyOf = {};
+    var seq = 0;
+    function keyFor(src){
+      if (!src) return '';
+      if (keyOf[src]) return keyOf[src];
+      var k = 'i' + (seq++);
+      keyOf[src] = k;
+      pool[k] = src;
+      return k;
+    }
+    return { pool: pool, keyFor: keyFor };
+  }
+
   function buildExportHtml(){
     var title = document.getElementById('titleInput').value.trim() || '세션 로그';
     var visible = state.entries.filter(function(e){
@@ -2352,6 +2393,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       if (state.hideBlankDialogue && isDialogueBlankForExport(e.html)) return false;
       return true;
     });
+    var imgPool = buildImagePool();
     var data = visible.map(function(e){
       if (e.type === 'divider') return { type:'divider', label:e.label || '' };
       var portrait = getEntryPortrait(e);
@@ -2359,23 +2401,26 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       var rollish = isRollLine(plain);
       return {
         type:'message', name:e.name || '', html:e.html || '', color:e.color || '',
-        portrait:portrait ? portrait.src : '', narration:!!e.isNarration,
+        portraitKey:imgPool.keyFor(portrait ? portrait.src : ''), narration:!!e.isNarration,
         system:!!(e.name && e.name.trim().toLowerCase()==='system'),
         rollish:rollish, rollResult:rollish ? classifyRollResult(plain) : '',
         tab:e.tab || '메인', isMain:/^(main|메인|メイン)$/i.test(String(e.tab || '').trim()),
         muted:!/^(main|메인|メイン)$/i.test(String(e.tab || '').trim()) && state.tabOpacity[e.tab] !== false
       };
     });
+    var imagePool = imgPool.pool;
     var vars = {
       font: '"Pretendard",sans-serif',
-      nameFontSize: state.nameFontSize || 12,
+      nameFontSize: state.nameFontSize || 11,
       bodyFontSize: state.bodyFontSize || 11,
       rollFontSize: state.rollFontSize || 10,
       bg: state.bgColor || '#303131', text: state.textColor || '#c0c0c0',
-      rollBg:'#282929', rollBorder:'#3e3f3f', rollText:'#f2f2f2', crit:'#22c55e', fumble:'#dc2626', opacity:(state.tabOpacityValue || 72) / 100
+      rollBg:'#282929', rollBorder:'#3e3f3f', rollText:'#f2f2f2', crit:'#22c55e', fumble:'#dc2626', opacity:(state.tabOpacityValue || 72) / 100,
+      cardWidth: state.cardMaxWidth || 520
     };
     var safeTitle = escapeHtml(title);
     var json = JSON.stringify(data, null, 2).replace(/<\/script/gi,'<\\/script');
+    var imagesJson = JSON.stringify(imagePool, null, 2).replace(/<\/script/gi,'<\\/script');
     return `<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -2393,7 +2438,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       color: ${vars.text};
     }
     .cclog-card {
-      max-width: 520px;
+      max-width: ${vars.cardWidth}px;
       margin: 0 auto;
       background: ${vars.bg};
       border: 1px solid #3e3f3f;
@@ -2470,12 +2515,11 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
     .roll-crit { color: ${vars.crit}; border-color: ${vars.crit}; font-weight: 700; }
     .roll-hard, .roll-success, .roll-fail { color: ${vars.rollText}; border-color: ${vars.rollBorder}; }
     .roll-fumble { color: ${vars.fumble}; border-color: ${vars.fumble}; font-weight: 700; }
-    .is-narration { align-items: center; }
-    .is-system .cclog-avatar, .is-system .cclog-avatar-ph { display: none; }
-    .is-system .cclog-name, .is-system .cclog-text {
-      font-size: ${Math.max(8, vars.bodyFontSize - 1)}px;
+    .is-narration, .is-system { align-items: center; }
+    .is-system .cclog-avatar, .is-system .cclog-avatar-ph { visibility: hidden; }
+    .is-system .cclog-text {
       color: #666;
-      font-weight: 400;
+      font-weight: 700;
     }
     .cclog-divider {
       display: flex;
@@ -2504,6 +2548,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
   <script>
     (function(){
       var data = ${json};
+      var images = ${imagesJson};
       var root = document.getElementById('cclog_list');
       function esc(s){
         return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -2517,18 +2562,19 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
           + (e.muted ? ' tab-muted' : '')
           + (!e.isMain ? ' has-tab-badge' : '');
 
-        var av = e.portrait
-          ? '<img class="cclog-avatar" src="' + esc(e.portrait) + '" alt="">'
+        var portraitSrc = e.portraitKey ? images[e.portraitKey] : '';
+        var av = portraitSrc
+          ? '<img class="cclog-avatar" src="' + esc(portraitSrc) + '" alt="">'
           : '<div class="cclog-avatar-ph"></div>';
 
-        var nameRow = e.name
+        var nameRow = (e.name && !e.system)
           ? '<div class="cclog-name-row">'
             + '<span class="cclog-name" style="color:' + esc(e.color) + '">' + esc(e.name) + '</span>'
             + (!e.isMain ? '<span class="cclog-badge">' + esc(e.tab) + '</span>' : '')
             + '</div>'
           : '';
 
-        var floatBadge = (!e.name && !e.isMain)
+        var floatBadge = ((!e.name || e.system) && !e.isMain)
           ? '<span class="cclog-badge cclog-badge-float">' + esc(e.tab) + '</span>'
           : '';
 
@@ -2560,6 +2606,7 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       return true;
     });
     var uid = 'cclog_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+    var imgPool = buildImagePool();
     var data = visible.map(function(e){
       if (e.type === 'divider') return { type:'divider', label:e.label || '' };
       var portrait = getEntryPortrait(e);
@@ -2567,35 +2614,37 @@ select,.text-input{font-size:11.5px;padding:8px 10px;}
       var rollish = isRollLine(plain);
       return {
         type:'message', name:e.name || '', html:e.html || '', color:e.color || '',
-        portrait:portrait ? portrait.src : '', narration:!!e.isNarration,
+        portraitKey:imgPool.keyFor(portrait ? portrait.src : ''), narration:!!e.isNarration,
 system:!!(e.name && e.name.trim().toLowerCase()==='system'),
         rollish:rollish, rollResult:rollish ? classifyRollResult(plain) : '',
         tab:e.tab || '메인', isMain:/^(main|메인|メイン)$/i.test(String(e.tab || '').trim()), muted:!/^(main|메인|メイン)$/i.test(String(e.tab || '').trim()) && state.tabOpacity[e.tab] !== false
       };
     });
+    var imagePool = imgPool.pool;
     var vars = {
       font: '"Pretendard",sans-serif',
-      nameFontSize: state.nameFontSize || 12,
+      nameFontSize: state.nameFontSize || 11,
       bodyFontSize: state.bodyFontSize || 11,
       rollFontSize: state.rollFontSize || 10,
       bg: state.bgColor || '#303131', text: state.textColor || '#c0c0c0',
-      rollBg:'#282929', rollBorder:'#3e3f3f', rollText:'#f2f2f2', crit:'#22c55e', fumble:'#dc2626', opacity:(state.tabOpacityValue || 72) / 100
+      rollBg:'#282929', rollBorder:'#3e3f3f', rollText:'#f2f2f2', crit:'#22c55e', fumble:'#dc2626', opacity:(state.tabOpacityValue || 72) / 100,
+      cardWidth: state.cardMaxWidth || 520
     };
     var snippet = '<!-- 코코포리아 로그 · 티스토리 HTML 모드 삽입용 -->\n' +
 `<div class="cclog-embed-bg" style="background:${vars.bg};border-radius:16px;overflow:hidden;"><div id="${uid}" class="cclog-embed"><style>
-#${uid},#${uid} *{box-sizing:border-box}#${uid}{max-width:520px;margin:0 auto;background:${vars.bg};border:1px solid #3e3f3f;border-radius:16px;overflow:hidden;font-family:${vars.font};color:${vars.text}}
+#${uid},#${uid} *{box-sizing:border-box}#${uid}{max-width:${vars.cardWidth}px;margin:0 auto;background:${vars.bg};border:1px solid #3e3f3f;border-radius:16px;overflow:hidden;font-family:${vars.font};color:${vars.text}}
 #${uid} .cclog-list{padding:12px 0}#${uid} .cclog-msg{display:flex;gap:14px;align-items:flex-start;padding:14px 20px;box-shadow:0 1px 0 #3a3b3b;position:relative}#${uid} .cclog-msg:last-child{box-shadow:none}
 #${uid} .cclog-avatar{width:34px;height:34px;object-fit:cover;object-position:top center;border-radius:50%;flex-shrink:0;margin-top:2px}#${uid} .cclog-avatar-ph{width:34px;height:34px;flex-shrink:0;visibility:hidden}
 #${uid} .cclog-body{flex:1;min-width:0;position:relative}#${uid} .cclog-name-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:2px;width:100%}#${uid} .cclog-badge{display:inline-flex;align-items:center;max-width:72px;padding:1px 4px;border:1px solid #353c52;border-radius:4px;background:transparent;color:#6a6a7a;font-size:9px;line-height:1.35;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-left:auto}#${uid} .cclog-badge-float{position:absolute;top:0;right:0}#${uid} .cclog-msg.has-tab-badge .cclog-text{padding-right:58px}#${uid} .cclog-msg.tab-muted{opacity:${vars.opacity}}#${uid} .cclog-name{font-size:${vars.nameFontSize}px;font-weight:600}#${uid} .cclog-text{font-size:${vars.bodyFontSize}px;line-height:1.55;color:${vars.text};word-break:break-word;white-space:pre-wrap}#${uid} .cclog-roll{display:inline-block;margin-top:3px;padding:3px 8px;background:${vars.rollBg};border:1px solid ${vars.rollBorder};border-radius:4px;color:${vars.rollText};font-size:${vars.rollFontSize}px}
 #${uid} .roll-crit{color:${vars.crit};border-color:${vars.crit};font-weight:700}#${uid} .roll-hard,#${uid} .roll-success,#${uid} .roll-fail{color:${vars.rollText};border-color:${vars.rollBorder}}#${uid} .roll-fumble{color:${vars.fumble};border-color:${vars.fumble};font-weight:700}
-#${uid} .is-narration{align-items:center}
-#${uid} .is-system .cclog-avatar,#${uid} .is-system .cclog-avatar-ph{display:none}#${uid} .is-system .cclog-name,#${uid} .is-system .cclog-text{font-size:${Math.max(8, vars.bodyFontSize - 1)}px;color:#666;font-weight:400}
+#${uid} .is-narration,#${uid} .is-system{align-items:center}
+#${uid} .is-system .cclog-avatar,#${uid} .is-system .cclog-avatar-ph{visibility:hidden}#${uid} .is-system .cclog-text{color:#666;font-weight:700}
 #${uid} .cclog-divider{display:flex;align-items:center;gap:10px;padding:14px 20px;color:#777;font-size:10px}#${uid} .cclog-divider:before,#${uid} .cclog-divider:after{content:"";height:1px;background:#3e3f3f;flex:1}
 @media(max-width:540px){#${uid}{max-width:100%}#${uid} .cclog-msg{padding:14px}}
 </style><div class="cclog-list" id="${uid}_list"></div><script>(function(){
-var data=${JSON.stringify(data).replace(/<\/script/gi,'<\\/script')};var root=document.getElementById('${uid}_list');
+var data=${JSON.stringify(data).replace(/<\/script/gi,'<\\/script')};var images=${JSON.stringify(imagePool).replace(/<\/script/gi,'<\\/script')};var root=document.getElementById('${uid}_list');
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
-root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cclog-divider">'+esc(e.label)+'</div>';var cls='cclog-msg'+(e.narration?' is-narration':'')+(e.system?' is-system':'')+(e.muted?' tab-muted':'')+(!e.isMain?' has-tab-badge':'');var av=e.portrait?'<img class="cclog-avatar" src="'+esc(e.portrait)+'" alt="">':'<div class="cclog-avatar-ph"></div>';var nameRow=e.name?'<div class="cclog-name-row"><span class="cclog-name" style="color:'+esc(e.color)+'">'+esc(e.name)+'</span>'+(!e.isMain?'<span class="cclog-badge">'+esc(e.tab)+'</span>':'')+'</div>':'';var floatBadge=(!e.name&&!e.isMain)?'<span class="cclog-badge cclog-badge-float">'+esc(e.tab)+'</span>':'';var tc=e.rollish?' cclog-roll'+(e.rollResult?' roll-'+e.rollResult:''):'';return '<div class="'+cls+'">'+av+'<div class="cclog-body">'+nameRow+floatBadge+'<div class="cclog-text'+tc+'">'+e.html+'</div></div></div>'}).join('');
+root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cclog-divider">'+esc(e.label)+'</div>';var cls='cclog-msg'+(e.narration?' is-narration':'')+(e.system?' is-system':'')+(e.muted?' tab-muted':'')+(!e.isMain?' has-tab-badge':'');var portraitSrc=e.portraitKey?images[e.portraitKey]:'';var av=portraitSrc?'<img class="cclog-avatar" src="'+esc(portraitSrc)+'" alt="">':'<div class="cclog-avatar-ph"></div>';var nameRow=(e.name&&!e.system)?'<div class="cclog-name-row"><span class="cclog-name" style="color:'+esc(e.color)+'">'+esc(e.name)+'</span>'+(!e.isMain?'<span class="cclog-badge">'+esc(e.tab)+'</span>':'')+'</div>':'';var floatBadge=((!e.name||e.system)&&!e.isMain)?'<span class="cclog-badge cclog-badge-float">'+esc(e.tab)+'</span>':'';var tc=e.rollish?' cclog-roll'+(e.rollResult?' roll-'+e.rollResult:''):'';return '<div class="'+cls+'">'+av+'<div class="cclog-body">'+nameRow+floatBadge+'<div class="cclog-text'+tc+'">'+e.html+'</div></div></div>'}).join('');
 })();<\/script></div></div>`;
     return snippet;
   }
@@ -3042,13 +3091,13 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
   // ── 다운로드 스니펫 ──
   // 실시간 편집 화면(msgRow)과 달리, 내보내는 결과물은 이미지·글자 크기가 고정된 정적 HTML이다.
   // 탭 목록은 요청대로 상자 위가 아니라 상자 "안", 그것도 아래쪽에 붙인다.
-  function tvEntryToRecord(e){
+  function tvEntryToRecord(e, imgPool){
     if (e.type === 'divider') return { type:'divider', label:e.label || '' };
     var plain = e.html.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g,'');
     var rollish = isRollLine(plain);
     return {
       type:'message', name:e.name || '', html:e.html || '', color:e.color || '',
-      portrait: e.avatarSrc || '', narration:!!e.isNarration,
+      portraitKey: imgPool.keyFor(e.avatarSrc || ''), narration:!!e.isNarration,
       system:!!(e.name && e.name.trim().toLowerCase()==='system'),
       rollish:rollish, rollResult:rollish ? classifyRollResult(plain) : '',
       tab:e.tab || '메인', isMain:/^(main|메인|メイン)$/i.test(String(e.tab || '').trim())
@@ -3058,6 +3107,7 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
   function tvBuildSnippet(){
     var title = document.getElementById('tvTitleInput').value.trim() || '로그 모음';
     var uid = 'cclogtabs_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+    var imgPool = buildImagePool();
     var panels = tvState.logs.map(function(l){
       var tabs = l.tabs || {};
       var visibleEntries = l.entries.filter(function(e){
@@ -3066,13 +3116,16 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
         if (state.hideBlankDialogue && isDialogueBlankForExport(e.html)) return false;
         return true;
       });
-      return { title: l.title, records: visibleEntries.map(tvEntryToRecord) };
+      return { title: l.title, records: visibleEntries.map(function(e){ return tvEntryToRecord(e, imgPool); }) };
     });
+    var imagePool = imgPool.pool;
     var panelsJson = JSON.stringify(panels).replace(/<\/script/gi, '<\\/script');
+    var imagesJson = JSON.stringify(imagePool).replace(/<\/script/gi, '<\\/script');
+    var cardWidth = state.cardMaxWidth || 520;
     var snippet = '<!-- 코코포리아 로그 모음 · 티스토리 HTML 모드 삽입용 · 아래 탭을 눌러 로그 전환 -->\n' +
 `<div class="cclogtabs-embed-bg" style="background:#303131;border-radius:16px;overflow:hidden;"><div id="${uid}" class="cclogtabs-embed"><style>
 #${uid},#${uid} *{box-sizing:border-box}
-#${uid}{max-width:640px;margin:0 auto;font-family:"Pretendard",sans-serif;color:#c0c0c0;background:#303131;border:1px solid #3e3f3f;border-radius:16px;overflow:hidden}
+#${uid}{max-width:${cardWidth}px;margin:0 auto;font-family:"Pretendard",sans-serif;color:#c0c0c0;background:#303131;border:1px solid #3e3f3f;border-radius:16px;overflow:hidden}
 #${uid} .cclogtabs-scroll{height:520px;overflow-y:auto}
 #${uid} .cclogtabs-scroll::-webkit-scrollbar{width:8px;height:8px}
 #${uid} .cclogtabs-scroll::-webkit-scrollbar-thumb{background:#4a4b4b;border-radius:8px}
@@ -3085,7 +3138,7 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
 #${uid} .cclog-avatar-ph{width:34px;height:34px;flex-shrink:0;visibility:hidden}
 #${uid} .cclog-body{flex:1;min-width:0;position:relative}
 #${uid} .cclog-name-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:2px;width:100%}
-#${uid} .cclog-name{font-size:12px;font-weight:600;color:#e4e4e4}
+#${uid} .cclog-name{font-size:11px;font-weight:600;color:#e4e4e4}
 #${uid} .cclog-badge{display:inline-flex;align-items:center;max-width:72px;padding:1px 4px;border:1px solid #353c52;border-radius:4px;color:#6a6a7a;font-size:9px;line-height:1.35;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;margin-left:auto}
 #${uid} .cclog-badge-float{position:absolute;top:0;right:0}
 #${uid} .cclog-msg.has-tab-badge .cclog-text{padding-right:58px}
@@ -3093,9 +3146,9 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
 #${uid} .cclog-roll{display:inline-block;margin-top:3px;padding:3px 8px;background:#282929;border:1px solid #3e3f3f;border-radius:4px;color:#f2f2f2;font-size:10px}
 #${uid} .roll-crit{color:#22c55e;border-color:#22c55e;font-weight:700}
 #${uid} .roll-fumble{color:#dc2626;border-color:#dc2626;font-weight:700}
-#${uid} .is-narration{align-items:center}
-#${uid} .is-system .cclog-avatar,#${uid} .is-system .cclog-avatar-ph{display:none}
-#${uid} .is-system .cclog-name,#${uid} .is-system .cclog-text{font-size:10px;color:#666;font-weight:400}
+#${uid} .is-narration,#${uid} .is-system{align-items:center}
+#${uid} .is-system .cclog-avatar,#${uid} .is-system .cclog-avatar-ph{visibility:hidden}
+#${uid} .is-system .cclog-text{color:#666;font-weight:700}
 #${uid} .cclog-divider{display:flex;align-items:center;gap:10px;padding:14px 20px;color:#777;font-size:10px}
 #${uid} .cclog-divider:before,#${uid} .cclog-divider:after{content:"";height:1px;background:#3e3f3f;flex:1}
 #${uid} .cclogtabs-tabbar{display:flex;gap:4px;flex-wrap:wrap;padding:10px 14px;border-top:1px solid #3a3b3b;background:#2b2c2c}
@@ -3108,6 +3161,7 @@ root.innerHTML=data.map(function(e){if(e.type==='divider')return '<div class="cc
 <div class="cclogtabs-tabbar" id="${uid}_tabbar"></div>
 <script>(function(){
 var panels=${panelsJson};
+var images=${imagesJson};
 var active=0;
 var tabbar=document.getElementById('${uid}_tabbar');
 var list=document.getElementById('${uid}_list');
@@ -3117,9 +3171,10 @@ function rowsHtml(records){
   return records.map(function(e){
     if(e.type==='divider') return '<div class="cclog-divider">'+esc(e.label)+'</div>';
     var cls='cclog-msg'+(e.narration?' is-narration':'')+(e.system?' is-system':'')+(!e.isMain?' has-tab-badge':'');
-    var av=e.portrait?'<img class="cclog-avatar" src="'+esc(e.portrait)+'" alt="">':'<div class="cclog-avatar-ph"></div>';
-    var nameRow=e.name?'<div class="cclog-name-row"><span class="cclog-name" style="color:'+esc(e.color)+'">'+esc(e.name)+'</span>'+(!e.isMain?'<span class="cclog-badge">'+esc(e.tab)+'</span>':'')+'</div>':'';
-    var floatBadge=(!e.name&&!e.isMain)?'<span class="cclog-badge cclog-badge-float">'+esc(e.tab)+'</span>':'';
+    var portraitSrc=e.portraitKey?images[e.portraitKey]:'';
+    var av=portraitSrc?'<img class="cclog-avatar" src="'+esc(portraitSrc)+'" alt="">':'<div class="cclog-avatar-ph"></div>';
+    var nameRow=(e.name&&!e.system)?'<div class="cclog-name-row"><span class="cclog-name" style="color:'+esc(e.color)+'">'+esc(e.name)+'</span>'+(!e.isMain?'<span class="cclog-badge">'+esc(e.tab)+'</span>':'')+'</div>':'';
+    var floatBadge=((!e.name||e.system)&&!e.isMain)?'<span class="cclog-badge cclog-badge-float">'+esc(e.tab)+'</span>':'';
     var tc=e.rollish?' cclog-roll'+(e.rollResult?' roll-'+e.rollResult:''):'';
     return '<div class="'+cls+'">'+av+'<div class="cclog-body">'+nameRow+floatBadge+'<div class="cclog-text'+tc+'">'+e.html+'</div></div></div>';
   }).join('');
